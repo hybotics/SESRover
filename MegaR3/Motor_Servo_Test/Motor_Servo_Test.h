@@ -27,7 +27,7 @@
 
 #define	BUILD_VERSION					"0.0.3"
 #define	BUILD_DATE 						"17-Apr-2014"
-#define	BUILD_BOARD						"Lynxmotion's BotBoarduino with Lynxmotion's SSC-32"
+#define	BUILD_BOARD						"Arduino Mega 2560 R3 with Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
 
@@ -84,7 +84,7 @@
 	Sensor settings
 */
 
-#define	MAX_NUMBER_AREA_READINGS		9
+#define	MAX_NUMBER_AREA_READINGS		36
 
 //	Parallax PING Untrasonic sensors
 #define	MAX_NUMBER_PING					1

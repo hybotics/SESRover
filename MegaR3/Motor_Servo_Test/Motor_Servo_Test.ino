@@ -22,9 +22,6 @@
 					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
-						Adafruit_Sensor, for the Unified Sensor Model,
-						Adafruit_TCS34725, for the TCS34725 RGB Color sensor,
-						Adafruit_TMP006, for the TMP006 heat sensor, and
 						RTClib, for the DS1307 real time clock.
 
 					Hybotics libraries:
