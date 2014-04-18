@@ -1,10 +1,10 @@
 /*
-	Program:      	SES Rover, Main navigation and reactive behaviors sketch
-	Date:         	17-Apr-2014
-	Version:      	0.0.3 ALPHA Lynxmotion BotBoarduino and SSC-32
+	Program:   SES Rover, Main navigation and reactive behaviors sketch
+	Date:      18-Apr-2014
+	Version:   0.0.3 ALPHA Arduino Mega 2560 R3 with Lynxmotion's SSC-32
 
-	Platform:	Lynxmotion's BotBoarduino (Arduino),
-				with Lynxmotion's SSC-32 Servo Controller,
+	Platform:	Arduino Mega 2560 R3,
+				Lynxmotion's SSC-32 Servo Controller,
 				and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
 
 	Purpose:	To experiment with various sensor configurations, tracking objects (heat or
@@ -26,7 +26,7 @@
 #define	I2C_ADDRESS						0x50
 
 #define	BUILD_VERSION					"0.0.3"
-#define	BUILD_DATE 						"17-Apr-2014"
+#define	BUILD_DATE 						"18-Apr-2014"
 #define	BUILD_BOARD						"Arduino Mega 2560 R3 with Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
