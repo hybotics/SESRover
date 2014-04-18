@@ -54,17 +54,17 @@
 #define	SERIAL_CONSOLE_RX_PIN			0
 #define	SERIAL_CONSOLE_TX_PIN			1
 
-//	Software Serial: SSC-32 Servo Controller
-#define	SERIAL_SSC32_RX_PIN				2
-#define	SERIAL_SSC32_TX_PIN				3
+//	Software Serial1: SSC-32 Servo Controller
+#define	SERIAL_SSC32_RX_PIN				19
+#define	SERIAL_SSC32_TX_PIN				18
 
-//	Software Serial: XBee
-#define	SERIAL_XBEE_RX_PIN				6
-#define	SERIAL_XBEE_TX_PIN				7
+//	Software Serial2: RESERVED
+#define	SERIAL_RESERVED_RX_PIN			17
+#define	SERIAL_RESERVED_TX_PIN			16
 
-//	Software Serial: RESERVED
-#define	SERIAL_RESERVED_RX_PIN			8
-#define	SERIAL_RESERVED_TX_PIN			9
+//	Software Serial3: XBee
+#define	SERIAL_XBEE_RX_PIN				15
+#define	SERIAL_XBEE_TX_PIN				14
 
 #define	COLOR_SENSOR_LED				4
 #define	SPEAKER_OUT						5
@@ -206,10 +206,10 @@ struct ServoMotor {
 	uint8_t pin;
 
 	int offset;
-	uint16_t neutralPos;
+	bool forward;
+	uint16_t neutral;
 	uint16_t minPulse;
 	uint16_t maxPulse;
-	bool direction;
 
 	uint16_t pulse;
 	uint16_t error;

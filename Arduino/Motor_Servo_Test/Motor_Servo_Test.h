@@ -206,10 +206,10 @@ struct ServoMotor {
 	uint8_t pin;
 
 	int offset;
-	uint16_t neutralPos;
+	bool forward;
+	uint16_t neutral;
 	uint16_t minPulse;
 	uint16_t maxPulse;
-	bool direction;
 
 	uint16_t pulse;
 	uint16_t error;

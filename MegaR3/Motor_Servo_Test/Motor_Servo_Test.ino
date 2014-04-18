@@ -20,6 +20,12 @@
 
 					Rewrote the ServoMotor struct to use naming like the Servo struct.
 					-------------------------------------------------------------------------------
+					v0.0.3 ALPHA 17-Apr-2014:
+					Switched processor to the Arduino Mega 2560 R3 board, because there is not enough
+						memory on a BotBoarduino (Arduino Duemilanove) for what I need to do.
+
+					Making adjustments to take advantage of the extra hardware serial ports.
+					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
 						RTClib, for the DS1307 real time clock.
@@ -87,18 +93,22 @@ RTC_DS1307 clock;
 //	Hardware Serial: Console and debug (replaces Serial.* routines)
 SoftwareSerial console(SERIAL_CONSOLE_RX_PIN, SERIAL_CONSOLE_TX_PIN);
 
-//	Software Serial: SSC-32 Servo Controller
+//	Hardware Serial1: SSC-32 Servo Controller
 SoftwareSerial ssc32(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
 
+//	Hardware Serial3: XBee Mesh Wireless
+SoftwareSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
+
 /************************************************************/
-/*	Initialize Servos										*/
+/*	Initialize Servos and Servo Motors						*/
 /************************************************************/
 
 Servo gripLift, gripWrist, gripGrab, pan, tilt;
 
-ServoMotor leftMotor = {
+ServoMotor leftMotorM1 = {
 	SERVO_MOTOR_LEFT_PIN,
 	SERVO_MOTOR_LEFT_OFFSET,
+	SERVO_MOTOR_LEFT_DIRECTION,
 	SERVO_MOTOR_LEFT_NEUTRAL,
 	SERVO_MOTOR_LEFT_MIN,
 	SERVO_MOTOR_LEFT_MAX,
@@ -106,9 +116,10 @@ ServoMotor leftMotor = {
 	0
 };
 
-ServoMotor rightMotor = {
+ServoMotor rightMotorM2 = {
 	SERVO_MOTOR_RIGHT_PIN,
 	SERVO_MOTOR_RIGHT_OFFSET,
+	SERVO_MOTOR_RIGHT_DIRECTION,
 	SERVO_MOTOR_RIGHT_NEUTRAL,
 	SERVO_MOTOR_RIGHT_MIN,
 	SERVO_MOTOR_RIGHT_MAX,
@@ -492,7 +503,7 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 	Set the motor speed
 */
 uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
-	uint16_t errorStatus = 0, pulse = SERVO_MOTOR_NEUTRAL;
+	uint16_t errorStatus = 0, pulse = servoMotor->neutral;
 	int motorSpeed = spd;
 
 	if ((spd < SERVO_MOTOR_MIN_SPEED) or (spd > SERVO_MOTOR_MAX_SPEED)) {
@@ -501,22 +512,22 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 	} else {
 		Servo servo;
 
+		//	Setup for the call to moveServoPw()
 		servo.pin = servoMotor->pin;
 		servo.offset = servoMotor->offset;
-		servo.homePos = servoMotor->neutralPos;
+		servo.homePos = servoMotor->neutral;
 		servo.minPulse = servoMotor->minPulse;
 		servo.maxPulse = servoMotor->maxPulse;
 		servo.msPulse = servoMotor->pulse;
 		servo.error = 0;
 
-		pulse += servoMotor->offset;
-/*
-		if (servoMotor->direction == false) {
+		if (servoMotor->forward == false) {
 			motorSpeed *= -1;
 		}
-*/
+
 		pulse += motorSpeed;
 
+		//	Set the motor's speed
 		errorStatus = moveServoPw(&servo, pulse, term);
 
 		if (errorStatus != 0) {
@@ -671,24 +682,24 @@ void initPanTilt (Servo *pan, Servo *tilt) {
 /*
 	Initialize the motors.
 */
-uint16_t initMotors (ServoMotor *left, ServoMotor *right) {
+uint16_t initMotors (ServoMotor *leftM1, ServoMotor *rightM2) {
 	uint16_t errorStatus = 0;
 
 	console.println("Initializing Motors..");
 
-	errorStatus = setMotorSpeed(left, SERVO_MOTOR_LEFT_NEUTRAL, false);
+	errorStatus = setMotorSpeed(leftM1, SERVO_MOTOR_LEFT_NEUTRAL, false);
 
 	if (errorStatus != 0) {
 		processError(errorStatus, F("(initMotors) Could not set the speed for the left motor"));
 	} else {
-		left->direction = SERVO_MOTOR_LEFT_DIRECTION;
+		leftM1->forward = SERVO_MOTOR_LEFT_DIRECTION;
 
-		errorStatus = setMotorSpeed(right, SERVO_MOTOR_RIGHT_NEUTRAL, true);
+		errorStatus = setMotorSpeed(rightM2, SERVO_MOTOR_RIGHT_NEUTRAL, true);
 
 		if (errorStatus != 0) {
 			processError(errorStatus, F("(initMotors) Could not set the speed for the right motor"));
 		} else {
-			right->direction = SERVO_MOTOR_RIGHT_DIRECTION;
+			rightM2->forward = SERVO_MOTOR_RIGHT_DIRECTION;
 		}
 	}
 
@@ -788,6 +799,9 @@ void setup (void) {
 	//	Initialize the SSC-32 servo controller port
 	ssc32.begin(115200);
 
+	//	Initialize the XBee Mesh Wireless port
+	xbee.begin(115200);
+
 	console.println("Initializing Digital Pins..");
 
 	//  Initialize the LED pin as an output.
@@ -807,7 +821,7 @@ void setup (void) {
 	initGripper(&gripLift, &gripWrist, &gripGrab);
 
 	//	Initialize the motors
-	errorStatus = initMotors(&leftMotor, &rightMotor);
+	errorStatus = initMotors(&leftMotorM1, &rightMotorM2);
 
 	if (errorStatus != 0) {
 		processError(errorStatus, F("(SETUP) There was a problem initializing the motors"));
@@ -816,29 +830,29 @@ void setup (void) {
 
 		//	Start the motors, forward
 		console.println(F("Starting the motors, forward"));
-		setMotorSpeed(&leftMotor, 500, false);
-		setMotorSpeed(&rightMotor, 500, true);
+		setMotorSpeed(&leftMotorM1, 500, false);
+		setMotorSpeed(&rightMotorM2, 500, true);
 
 		delay(5000);
 
 		//	Stop the motors
 		console.println(F("Stopping the motors"));
-		setMotorSpeed(&leftMotor, 0, false);
-		setMotorSpeed(&rightMotor, 0, true);
+		setMotorSpeed(&leftMotorM1, 0, false);
+		setMotorSpeed(&rightMotorM2, 0, true);
 
 		delay(2000);
 
 		//	Start the motors, reverse
 		console.println(F("Starting the motors, reverse"));
-		setMotorSpeed(&leftMotor, -500, false);
-		setMotorSpeed(&rightMotor, -500, true);
+		setMotorSpeed(&leftMotorM1, -500, false);
+		setMotorSpeed(&rightMotorM2, -500, true);
 
 		delay(5000);
 
 		//	Stop the motors
 		console.println(F("Stopping the motors"));
-		setMotorSpeed(&leftMotor, 0, false);
-		setMotorSpeed(&rightMotor, 0, true);
+		setMotorSpeed(&leftMotorM1, 0, false);
+		setMotorSpeed(&rightMotorM2, 0, true);
 	}
 }
 
@@ -999,8 +1013,8 @@ void loop (void) {
 
 	//	Move the motors
 	console.println("Moving the motors..");
-	setMotorSpeed(&leftMotor, 100, false);
-	setMotorSpeed(&rightMotor, 100, true);
+	setMotorSpeed(&leftMotorM1, 100, false);
+	setMotorSpeed(&rightMotorM2, 100, true);
 
 	/*
 		Delay a bit, to allow time to read the Serial Monitor information log

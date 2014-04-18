@@ -20,6 +20,12 @@
 
 					Rewrote the ServoMotor struct to use naming like the Servo struct.
 					-------------------------------------------------------------------------------
+					v0.0.3 ALPHA 17-Apr-2014:
+					Switched processor to the Arduino Mega 2560 R3 board, because there is not enough
+						memory on a BotBoarduino (Arduino Duemilanove) for what I need to do.
+
+					Making adjustments to take advantage of the extra hardware serial ports.
+					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
 						Adafruit_Sensor, for the Unified Sensor Model,
@@ -513,11 +519,11 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 		servo.error = 0;
 
 		pulse += servoMotor->offset;
-/*
+
 		if (servoMotor->direction == false) {
 			motorSpeed *= -1;
 		}
-*/
+
 		pulse += motorSpeed;
 
 		errorStatus = moveServoPw(&servo, pulse, term);
@@ -682,14 +688,14 @@ uint16_t initMotors (ServoMotor *left, ServoMotor *right) {
 	errorStatus = setMotorSpeed(left, SERVO_MOTOR_LEFT_NEUTRAL, false);
 
 	if (errorStatus != 0) {
-		processError(errorStatus, F("(initMotors) Could not set the speed for the left motor"));
+		processError(errorStatus, F("(initMotors) Could not initialze the LEFT motor"));
 	} else {
 		left->direction = SERVO_MOTOR_LEFT_DIRECTION;
 
 		errorStatus = setMotorSpeed(right, SERVO_MOTOR_RIGHT_NEUTRAL, true);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("(initMotors) Could not set the speed for the right motor"));
+			processError(errorStatus, F("(initMotors) Could not initialize the RIGHT motor"));
 		} else {
 			right->direction = SERVO_MOTOR_RIGHT_DIRECTION;
 		}

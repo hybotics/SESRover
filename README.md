@@ -15,7 +15,9 @@ Purpose:		To experiment with various sensor configurations, tracking objects (he
 
 Directories:
 
-	Main		Main operation code.
+	Arduino		Arduino / BotBoarduino code
+	
+	MegaR3		Arduino Mega R3 code
 
 Files:
 
