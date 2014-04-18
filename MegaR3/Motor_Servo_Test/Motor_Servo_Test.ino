@@ -90,14 +90,17 @@ RTC_DS1307 clock;
 	Setup all our serial devices
 */
 
-//	Hardware Serial: Console and debug (replaces Serial.* routines)
+//	Hardware Serial0: Console and debug (replaces Serial.* routines)
 SoftwareSerial console(SERIAL_CONSOLE_RX_PIN, SERIAL_CONSOLE_TX_PIN);
 
-//	Hardware Serial1: SSC-32 Servo Controller
+//	Hardware Serial1: Lynxmotion SSC-32 Servo Controller
 SoftwareSerial ssc32(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
 
-//	Hardware Serial3: XBee Mesh Wireless
+//	Hardware Serial2: XBee Mesh Wireless
 SoftwareSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
+
+//	Hardware Serial3: RESERVED
+SoftwareSerial reserved(SERIAL_RESERVED_RX_PIN, SERIAL_RESERVED_TX_PIN);
 
 /************************************************************/
 /*	Initialize Servos and Servo Motors						*/

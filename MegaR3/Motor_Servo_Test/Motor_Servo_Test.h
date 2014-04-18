@@ -50,21 +50,21 @@
 	Serial ports
 */
 
-//	Hardware Serial: Console and Debug port
+//	Hardware Serial0: Console and Debug port
 #define	SERIAL_CONSOLE_RX_PIN			0
 #define	SERIAL_CONSOLE_TX_PIN			1
 
-//	Software Serial1: SSC-32 Servo Controller
+//	Hardware Serial1: 
 #define	SERIAL_SSC32_RX_PIN				19
 #define	SERIAL_SSC32_TX_PIN				18
 
-//	Software Serial2: RESERVED
-#define	SERIAL_RESERVED_RX_PIN			17
-#define	SERIAL_RESERVED_TX_PIN			16
+//	Hardware Serial2: Lynxmotion SSC-32
+#define	SERIAL_XBEE_RX_PIN				17
+#define	SERIAL_XBEE_TX_PIN				16
 
-//	Software Serial3: XBee
-#define	SERIAL_XBEE_RX_PIN				15
-#define	SERIAL_XBEE_TX_PIN				14
+//	Hardware Serial3: RESERVED
+#define	SERIAL_RESERVED_RX_PIN			15
+#define	SERIAL_RESERVED_TX_PIN			14
 
 #define	COLOR_SENSOR_LED				4
 #define	SPEAKER_OUT						5
