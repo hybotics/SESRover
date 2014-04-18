@@ -1,15 +1,15 @@
 /*
 	Program:   SES Rover, Main navigation and reactive behaviors sketch
 	Date:      18-Apr-2014
-	Version:   0.0.3 ALPHA Arduino Mega 2560 R3 with Lynxmotion's SSC-32
+	Version:   0.1.0 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
-				Lynxmotion's SSC-32 Servo Controller,
-				and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
+					Lynxmotion's SSC-32 Servo Controller,
+					and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
 
 	Purpose:	To experiment with various sensor configurations, tracking objects (heat or
-				color based), course following, manipulation of the environment, and to
-				test code that will later be used on W.A.L.T.E.R. 2.0.
+					color based), course following, manipulation of the environment, and to
+					test code that will later be used on W.A.L.T.E.R. 2.0.
 
 	Comments:	Credit is given, where applicable, for code I did not originate.
 
@@ -25,7 +25,7 @@
 
 #define	I2C_ADDRESS						0x50
 
-#define	BUILD_VERSION					"0.0.3"
+#define	BUILD_VERSION					"0.1.0"
 #define	BUILD_DATE 						"18-Apr-2014"
 #define	BUILD_BOARD						"Arduino Mega 2560 R3 with Lynxmotion's SSC-32"
 
@@ -41,6 +41,10 @@
 #define	DISPLAY_DATE_FREQ_MIN			15
 #define	DISPLAY_TIME_FREQ_MIN			15
 #define	DISPLAY_TEMPERATURE_FREQ_MIN	15
+
+#define HAVE_COLOR_SENSOR				false
+#define HAVE_HEAT_SENSOR				false
+#define HAVE_10DOF_IMU					false
 
 /*********************************************************
 	Lynxmotion BotBoarduino (Arduino) Settings
@@ -175,6 +179,23 @@
 /*	Structs for data we store about various onboard devices	*/
 /*********************************************************************/
 
+//	The 10DOF Inertial Measurement Unit (IMU)
+struct InertialMeasurementUnit {
+	sensors_event_t accelEvent;
+	sensors_event_t compassEvent;
+	sensors_event_t tempEvent;
+	sensors_vec_t orientation;
+
+	float accelX, accelY, accelZ;
+	float compassX, compassY, compassZ;
+	int gyroX, gyroY, gyroZ;
+
+	float seaLevelPressure;
+
+	bool pitchRollValid;
+	bool headingValid;
+};
+
 //	TC S34725 RGB Color Sensor
 struct ColorSensor {
 	uint16_t colorTempC;
@@ -194,9 +215,12 @@ struct HeatSensor {
 };
 
 //	For areaScan() readings
-struct AreaDistanceReading {
+struct AreaScanReading {
 	float ir;
 	uint16_t ping;
+
+	ColorSensor color;
+	HeatSensor heat;
 
 	int positionDeg;
 };
