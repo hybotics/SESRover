@@ -192,6 +192,10 @@ struct InertialMeasurementUnit {
 
 	float seaLevelPressure;
 
+	bool temperatureValid;
+	float celsius;
+	float fahrenheit;
+
 	bool pitchRollValid;
 	bool headingValid;
 };

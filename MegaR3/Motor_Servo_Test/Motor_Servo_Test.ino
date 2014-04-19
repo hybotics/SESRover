@@ -187,6 +187,134 @@ AreaScanReading areaScan[MAX_NUMBER_AREA_READINGS];
 bool areaScanValid = false;
 
 /************************************************************/
+/*	Utility routines										*/
+/************************************************************/
+
+/*
+    Left zero pad a numeric string
+*/
+String leftZeroPadString (String st, uint8_t nrPlaces) {
+  uint8_t i, len;
+  String newStr = st;
+
+  lastRoutine = String(F("leftZeroPadString"));
+  
+  if (newStr.length() < nrPlaces) {
+    len = st.length();
+  
+    for (i = len; i < nrPlaces; i++) {
+      newStr = String("0" + newStr);
+    }
+  }
+
+  return newStr;
+}
+
+/*
+    Convert a pulse width in ms to inches
+*/
+long microsecondsToInches (long microseconds) {
+	/*
+		According to Parallax's datasheet for the PING))), there are
+			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
+			second).  This gives the distance travelled by the ping, outbound
+			and return, so we divide by 2 to get the distance of the obstacle.
+		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+	*/
+
+	lastRoutine = String(F("microsecondsToInches"));
+	
+	return microseconds / 74 / 2;
+}
+
+/*
+    Convert a pulse width in ms to a distance in cm
+*/
+long microsecondsToCentimeters (long microseconds) {
+	/*
+		The speed of sound is 340 m/s or 29 microseconds per centimeter.
+
+		The ping travels out and back, so to find the distance of the
+			object we take half of the distance travelled.
+	*/
+
+	lastRoutine = String(F("microsecondsToCentimeters"));
+
+	return microseconds / 29 / 2;
+}
+
+/*
+    Pulses a digital pin for a duration in ms
+*/
+void pulseDigital(int pin, int duration) {
+	lastRoutine = String(F("pulseDigital"));
+
+	digitalWrite(pin, HIGH);			// Turn the ON by making the voltage HIGH (5V)
+	delay(duration);					// Wait for duration ms
+	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
+	delay(duration);					// Wait for duration ms
+}
+
+/*
+	Convert a temperature in Celsius to Fahrenheit
+*/
+float toFahrenheit (float celsius) {
+	lastRoutine = String(F("toFahrenheit"));
+
+	return (celsius * 1.8) + 32;
+}
+
+/*
+    Trim trailing zeros from a numeric string
+*/
+String trimTrailingZeros (String st) {
+  uint8_t newStrLen = 0;
+  String newStr = st;
+
+  lastRoutine = String(F("trimTrailingZeros"));
+
+  newStrLen = newStr.length();
+
+  while (newStr.substring(newStrLen - 1) == "0") {
+    newStrLen -= 1;
+    newStr = newStr.substring(0, newStrLen);
+  }
+
+  return newStr;
+}
+
+/*
+    Process error conditions
+*/
+void processError (byte errCode, String errMsg) {
+	console.print(F("Error in routine '"));
+	console.print(lastRoutine);
+	console.print(F("', Code: "));
+	console.print(errCode);
+	console.print(F(", Message: "));
+	console.print(errMsg);
+	console.println(F("!"));
+}
+
+/*
+	Wait for a bit to allow time to read the Console Serial Monitor log
+*/
+void wait (uint8_t nrSeconds) {
+	uint8_t count;
+
+	lastRoutine = String(F("wait"));
+
+	console.print(F("Waiting"));
+
+	for (count = 0; count < nrSeconds; count++) {
+		console.print(F("."));
+		delay(1000);
+	}
+
+	console.println();
+}
+
+/************************************************************/
 /*	Display routines										*/
 /************************************************************/
 
@@ -280,64 +408,68 @@ void displayHeatSensorData (HeatSensor *heatData) {
 	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], Gyroscope,
 		and Orientation (if valid)
 */
-void displayIMUData (sensors_event_t *accelEvent, sensors_event_t *compassEvent, sensors_vec_t *orientation, bool pitchRollValid, bool headingValid, bool temperatureValid, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
+void displayIMUData (InertialMeasurementUnit *imuData) {
+	sensors_vec_t orientation = imuData->orientation;
+	float celsius;
+
 	//	LMS303DLHC Accelerometer readings
 	console.println(F("Accelerometer Readings: X = "));
-	console.print(accelEvent->acceleration.x);
+	console.print(imuData->accelX);
 	console.print(F(", Y = "));
-	console.print(accelEvent->acceleration.y);
+	console.print(imuData->accelY);
 	console.print(F(", Z = "));
-	console.println(accelEvent->acceleration.z);
+	console.println(imuData->accelZ);
 	console.println();
 
 	//	LMS303DLHC Magnetometer (Compass) readings
 	console.println(F("Magnetometer (Compass) Readings: X = "));
-	console.print(compassEvent->magnetic.x);
+	console.print(imuData->compassX);
 	console.print(F(", Y = "));
-	console.print(compassEvent->magnetic.y);
+	console.print(imuData->compassY);
 	console.print(F(", Z = "));
-	console.println(compassEvent->magnetic.z);
+	console.println(imuData->compassZ);
 	console.println();
 
 	//	L3DG20 Gyroscope readings
 	console.println(F("Gyroscope Readings: Gyro: X = "));
-	console.print(gyroX);
+	console.print(imuData->gyroX);
 	console.print(F(", Y = "));
-	console.print(gyroY);
+	console.print(imuData->gyroY);
 	console.print(F(", Z = "));
-	console.println(gyroZ);
+	console.println(imuData->gyroZ);
 	console.println();
 
 	//	BMP180 Temperature readings
-	if (temperatureValid) {
+	if (imuData->temperatureValid) {
 		console.print(F("Room Temperature = "));
-		console.print(fahrenheit);
+		console.print(imuData->fahrenheit);
 		console.print(F(" F, "));
-		console.print(celsius);
+		console.print(imuData->celsius);
 		console.println(F(" C."));
 		console.println();
 	}
 
-	if (pitchRollValid || headingValid) {
+	if (imuData->pitchRollValid || imuData->headingValid) {
 		console.println(F("Orientation Readings:"));
 	}
 	
 	//	Orientation readings - Pitch, Roll, and Heading
-	if (pitchRollValid) {
+	if (imuData->pitchRollValid) {
 		console.print(F("Roll: "));
-		console.print(orientation->roll);
+		console.print(orientation.roll);
 		console.print(F("; "));
 		console.print(F("Pitch: "));
-		console.print(orientation->pitch);
+		console.print(orientation.pitch);
 	}
 
-	if (headingValid) {
-		if (pitchRollValid) {
-			console.print(F(", "));
+	if (imuData->headingValid) {
+		if (imuData->pitchRollValid) {
+			console.print(F("; "));
 		}
 
 		console.print(F("Heading: "));
-		console.println(orientation->heading);
+		console.print(orientation.heading);
+		console.println(F(" degrees."));
 	}
 
 	console.println();
@@ -458,6 +590,15 @@ InertialMeasurementUnit readIMU (void) {
 
 	//	Calculate the heading using the magnetometer (compass)
 	imuData.headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &imuData.compassEvent, &imuData.orientation);
+
+	//	Get temperature and pressure data
+	temperature.getEvent(&imuData.tempEvent);
+	imuData.temperatureValid = imuData.tempEvent.pressure;
+
+	if (imuData.temperatureValid) {
+		temperature.getTemperature(&imuData.celsius);
+		imuData.fahrenheit = toFahrenheit(imuData.celsius);
+	}
 
 	return imuData;
 }
@@ -658,7 +799,7 @@ uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int mov
 }
 
 /*
-	Scan the area for objects
+	Scan an arc of up to 180 degrees, and take sensor readings at each angle increment
 */
 uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 	uint16_t errorStatus = 0;
@@ -814,138 +955,6 @@ uint16_t stopMotors (void) {
 	}
 
 	return errorStatus;
-}
-
-/************************************************************/
-/*	Utility routines										*/
-/************************************************************/
-
-/*
-    Left zero pad a numeric string
-*/
-String leftZeroPadString (String st, uint8_t nrPlaces) {
-  uint8_t i, len;
-  String newStr = st;
-
-  lastRoutine = String(F("leftZeroPadString"));
-  
-  if (newStr.length() < nrPlaces) {
-    len = st.length();
-  
-    for (i = len; i < nrPlaces; i++) {
-      newStr = String("0" + newStr);
-    }
-  }
-
-  return newStr;
-}
-
-/*
-    Convert a pulse width in ms to inches
-*/
-long microsecondsToInches (long microseconds) {
-	/*
-		According to Parallax's datasheet for the PING))), there are
-			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
-			second).  This gives the distance travelled by the ping, outbound
-			and return, so we divide by 2 to get the distance of the obstacle.
-		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
-	*/
-
-	lastRoutine = String(F("microsecondsToInches"));
-	
-	return microseconds / 74 / 2;
-}
-
-/*
-    Convert a pulse width in ms to a distance in cm
-*/
-long microsecondsToCentimeters (long microseconds) {
-	/*
-		The speed of sound is 340 m/s or 29 microseconds per centimeter.
-
-		The ping travels out and back, so to find the distance of the
-			object we take half of the distance travelled.
-	*/
-
-	lastRoutine = String(F("microsecondsToCentimeters"));
-
-	return microseconds / 29 / 2;
-}
-
-/*
-    Pulses a digital pin for a duration in ms
-*/
-void pulseDigital(int pin, int duration) {
-	lastRoutine = String(F("pulseDigital"));
-
-	digitalWrite(pin, HIGH);			// Turn the ON by making the voltage HIGH (5V)
-	delay(duration);					// Wait for duration ms
-	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
-	delay(duration);					// Wait for duration ms
-}
-
-/*
-	Convert a temperature in Celsius to Fahrenheit
-*/
-float toFahrenheit (float celsius) {
-	lastRoutine = String(F("toFahrenheit"));
-
-	return (celsius * 1.8) + 32;
-}
-
-/*
-    Trim trailing zeros from a numeric string
-*/
-String trimTrailingZeros (String st) {
-  uint8_t newStrLen = 0;
-  String newStr = st;
-
-  lastRoutine = String(F("trimTrailingZeros"));
-
-  newStrLen = newStr.length();
-
-  while (newStr.substring(newStrLen - 1) == "0") {
-    newStrLen -= 1;
-    newStr = newStr.substring(0, newStrLen);
-  }
-
-  return newStr;
-}
-
-/************************************************************/
-/*	Miscelaneous routines									*/
-/************************************************************/
-
-/*
-    Process error conditions
-*/
-void processError (byte errCode, String errMsg) {
-	console.print(F("Error in routine '"));
-	console.print(lastRoutine);
-	console.print(F("', Code: "));
-	console.print(errCode);
-	console.print(F(", Message: "));
-	console.print(errMsg);
-	console.println(F("!"));
-}
-
-/*
-	Wait for a bit to allow time to read the Console Serial Monitor log
-*/
-void wait (uint8_t nrSeconds) {
-	uint8_t count;
-
-	lastRoutine = String(F("wait"));
-
-	console.print(F("Waiting"));
-
-	for (count = 0; count < nrSeconds; count++) {
-		console.print(F("."));
-		delay(1000);
-	}
-
-	console.println();
 }
 
 /********************************************************/
@@ -1313,6 +1322,10 @@ void loop (void) {
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
 
+	ColorSensor colorData;
+	HeatSensor heatData;
+	InertialMeasurementUnit imuData;
+
 	/*
 		Code starts here
 	*/
@@ -1334,6 +1347,12 @@ void loop (void) {
 		lastMinute = currentMinute;
 
 		firstLoop = false;
+	}
+
+	if (HAVE_10DOF_IMU) {
+		imuData = readIMU();
+
+		displayIMUData(&imuData);
 	}
 
 	console.println(F("Getting Distance Sensor readings.."));
@@ -1389,34 +1408,27 @@ void loop (void) {
 				areaFarthestReadingIR = readingNr;
 			}
 		}
+
+		displayAreaScanReadings();
 	} else {
 		console.println(F("Area scan is not valid.."));
 	}
 
-	/*
-		Read the TCS34725 RGB color sensor
-	*/
+	//	Read the TCS34725 RGB color sensor, if we have it
+	if (HAVE_COLOR_SENSOR) {
+		colorData = readColorSensor();
 
-/*
-	rgb.getRawData(&colorData.red, &colorData.green, &colorData.blue, &colorData.c);
-	colorData.colorTemp = rgb.calculateColorTemperature(colorData.red, colorData.green, colorData.blue);
-	colorData.lux = rgb.calculateLux(colorData.red, colorData.green, colorData.blue);
+		displayColorSensorData(&colorData);
+	}
 
-	displayColorSensorData(&colorData);
-*/
-
-	/*
-		Read the TMP006 heat sensor
-	*/
-
-/*
-	heatData.dieTemp = heat.readDieTempC();
-	heatData.objectTemp = heat.readObjTempC();
+	//	Read the TMP006 heat sensor, if we have it
+	if (HAVE_HEAT_SENSOR) {
+		heatData = readHeatSensor();
 	
-	displayHeatSensorReadings(&heatData);
+		displayHeatSensorData(&heatData);
+	}
 
 	console.println();
-*/
 
 	//	Count the minutes
 	if (currentMinute != lastMinute) {
