@@ -42,6 +42,10 @@
 					Added the displayIMUData() and readIMU() for the Adafruit 10DOF IMU
 
 					Added conditional initialization for all optional sensors.
+
+					Added the readGP2Y0A21YK0F() routine to read the Sharp GP2Y0A21YK0F IR sensor
+
+					Changed the name of the readIR() routine to readGP2D12().
 					-------------------------------------------------------------------------------
 						
 	Dependencies:	Adafruit libraries:
@@ -603,29 +607,40 @@ InertialMeasurementUnit readIMU (void) {
 	return imuData;
 }
 
+/*
+	Read distance in cm from a Sharp GP2Y0A21YK0F IR sensor
+*/
+float readGP2Y0A21YK0F (byte sensorNr) {
+	byte pin = sensorNr + IR_PIN_BASE;
+
+	float volts = analogRead(pin) * 0.0048828125;
+	float distance = 65 * pow(volts, -1.10);
+
+	lastRoutine = String(F("readGP2Y0A21YK0F"));
+
+	return distance;
+}
+
 /* 
-	Function to read a value from a GP2Y0A21YK0F infrared distance sensor and return a
+	Function to read a value from a GP2D12 infrared distance sensor and return a
 		distance value in centimeters.
 
 	This sensor should be used with a refresh rate of 36ms or greater.
 
 	Javier Valencia 2008
 
-	float readIR(byte pin)
+	float readGP2D12(byte pin)
 
 	It can return -1 if something has gone wrong.
 
 	TODO: Make several readings over a time period, and average them
 		for the final reading.
-
-	NOTE: This code is for the older Sharp GP2D12 IR sensor, and will no
-		doubt have to be adjusted to work correctly with the newer sensor.
 */
-float readIR (byte sensorNr) {
+float readGP2D12 (byte sensorNr) {
 	byte pin = sensorNr + IR_PIN_BASE;
 	int tmp;
 
-	lastRoutine = String(F("readIR"));
+	lastRoutine = String(F("readGP2D12"));
 
 	tmp = analogRead(pin);
 
@@ -857,7 +872,7 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 				} else {
 					//	Take a reading from each pan/tilt sensor in cm
 					areaScan[readingNr].ping = readPING(PING_FRONT_CENTER, true);
-					areaScan[readingNr].ir = readIR(IR_FRONT_CENTER);
+					areaScan[readingNr].ir = readGP2Y0A21YK0F(IR_FRONT_CENTER);
 					areaScan[readingNr].positionDeg = positionDeg;
 
 					if (HAVE_COLOR_SENSOR) {
@@ -1360,7 +1375,7 @@ void loop (void) {
 	//	Get readings from all the GP2Y0A21YK0F Analog IR range sensors, if any, and store them
 	if (MAX_NUMBER_IR > 0) {
 		for (analogPin = 0; analogPin < MAX_NUMBER_IR; analogPin++) { 
-			ir[analogPin] = readIR(analogPin);
+			ir[analogPin] = readGP2Y0A21YK0F(analogPin);
 		}
 
 		displayIR();
