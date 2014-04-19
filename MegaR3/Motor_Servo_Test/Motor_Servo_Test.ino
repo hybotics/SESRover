@@ -610,13 +610,13 @@ InertialMeasurementUnit readIMU (void) {
 /*
 	Read distance in cm from a Sharp GP2Y0A21YK0F IR sensor
 */
-float readGP2Y0A21YK0F (byte sensorNr) {
+float readSharpGP2Y0A21YK0F (byte sensorNr) {
 	byte pin = sensorNr + IR_PIN_BASE;
 
 	float volts = analogRead(pin) * 0.0048828125;
 	float distance = 65 * pow(volts, -1.10);
 
-	lastRoutine = String(F("readGP2Y0A21YK0F"));
+	lastRoutine = String(F("readSharpGP2Y0A21YK0F"));
 
 	return distance;
 }
@@ -636,11 +636,11 @@ float readGP2Y0A21YK0F (byte sensorNr) {
 	TODO: Make several readings over a time period, and average them
 		for the final reading.
 */
-float readGP2D12 (byte sensorNr) {
+float readSharpGP2D12 (byte sensorNr) {
 	byte pin = sensorNr + IR_PIN_BASE;
 	int tmp;
 
-	lastRoutine = String(F("readGP2D12"));
+	lastRoutine = String(F("readSharpGP2D12"));
 
 	tmp = analogRead(pin);
 
@@ -678,12 +678,12 @@ float readGP2D12 (byte sensorNr) {
 
 		Set units = true for cm, and false for inches
 */
-int readPING (byte sensorNr, boolean units=true) {
+int readParallaxPING (byte sensorNr, boolean units=true) {
 	byte pin = sensorNr + PING_PIN_BASE;
 	long duration;
 	int result;
 
-	lastRoutine = String(F("readPING"));
+	lastRoutine = String(F("readParallaxPING"));
 
 	/*
 		The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
@@ -871,8 +871,8 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 					break;
 				} else {
 					//	Take a reading from each pan/tilt sensor in cm
-					areaScan[readingNr].ping = readPING(PING_FRONT_CENTER, true);
-					areaScan[readingNr].ir = readGP2Y0A21YK0F(IR_FRONT_CENTER);
+					areaScan[readingNr].ping = readParallaxPING(PING_FRONT_CENTER, true);
+					areaScan[readingNr].ir = readSharpGP2Y0A21YK0F(IR_FRONT_CENTER);
 					areaScan[readingNr].positionDeg = positionDeg;
 
 					if (HAVE_COLOR_SENSOR) {
@@ -1375,7 +1375,7 @@ void loop (void) {
 	//	Get readings from all the GP2Y0A21YK0F Analog IR range sensors, if any, and store them
 	if (MAX_NUMBER_IR > 0) {
 		for (analogPin = 0; analogPin < MAX_NUMBER_IR; analogPin++) { 
-			ir[analogPin] = readGP2Y0A21YK0F(analogPin);
+			ir[analogPin] = readSharpGP2Y0A21YK0F(analogPin);
 		}
 
 		displayIR();
@@ -1384,7 +1384,7 @@ void loop (void) {
 	//	Get readings from all the Parallax PING Ultrasonic range sensors, if any, and store them
 	if (MAX_NUMBER_PING > 0) {
 		for (digitalPin = 0; digitalPin < MAX_NUMBER_PING; digitalPin++) {
-			ping[digitalPin] = readPING(digitalPin);
+			ping[digitalPin] = readParallaxPING(digitalPin);
 		}
 
 		displayPING();
