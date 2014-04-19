@@ -46,9 +46,9 @@
 #define HAVE_HEAT_SENSOR				false
 #define HAVE_10DOF_IMU					false
 
-/*********************************************************
-	Lynxmotion BotBoarduino (Arduino) Settings
-*********************************************************/
+/********************************************************/
+/*	Lynxmotion BotBoarduino (Arduino) settings 			*/
+/********************************************************/
 
 /*
 	Serial ports
