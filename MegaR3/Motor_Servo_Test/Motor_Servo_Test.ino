@@ -43,12 +43,16 @@
 
 					Added conditional initialization for all optional sensors.
 					-------------------------------------------------------------------------------
-
+						
 	Dependencies:	Adafruit libraries:
-						RTClib, for the DS1307 real time clock.
+						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
 
 					Hybotics libraries:
-						None
+						Hybotics_10DOF_Unified (forked from the Adafruit_10DOF library)
+						Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LSM303 library)
+
+					Other libraries:
+						RTClib for the DS1307 (Adafruit version),
 
 	Comments:		Credit is given, where applicable, for code I did not originate.
 */
