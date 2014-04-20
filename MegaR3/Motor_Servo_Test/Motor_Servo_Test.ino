@@ -1,7 +1,7 @@
 /*
 	Program:      	SES Rover, Motor_Servo_Test.ino - Motor experimentation and test sketch
-	Date:         	19-Apr-2014
-	Version:      	0.2.0 ALPHA
+	Date:         	20-Apr-2014
+	Version:      	0.2.1 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
 						Lynxmotion's SSC-32 Servo Controller,
@@ -71,6 +71,8 @@
 					Created the findDistanceObjects() routine and DistanceObject struct.
 
 					Added display of distance objects in displayAreaScanReadings().
+					-------------------------------------------------------------------------------
+					v0.2.1 20-Apr-2014:
 					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -967,8 +969,6 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 
 	errorStatus = stopMotors();
 
-	console.println(F("(scanArea #1) Checking parameters.."));
-
 	//	Check the parameters
 	if (startDeg > stopDeg) {
 		//	Start can't be greater than stop
@@ -1049,7 +1049,8 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 	Set the motor speed
 */
 uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
-	uint16_t errorStatus = 0, pulse = servoMotor->neutral;
+	uint16_t errorStatus = 0;
+	uint16_t pulse = SERVO_CENTER_MS;
 	int motorSpeed = spd;
 
 	lastRoutine = String(F("setMotorSpeed"));
@@ -1066,7 +1067,6 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 		servo.homePos = servoMotor->neutral;
 		servo.minPulse = servoMotor->minPulse;
 		servo.maxPulse = servoMotor->maxPulse;
-		servo.msPulse = servoMotor->pulse;
 		servo.error = 0;
 
 		if (servoMotor->forward == false) {
@@ -1074,13 +1074,14 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 		}
 
 		pulse += motorSpeed;
+		servo.msPulse = pulse;
 
 		//	Set the motor's speed
 		errorStatus = moveServoPw(&servo, pulse, term);
 
 		if (errorStatus != 0) {
 			servoMotor->error = servo.error;
-			processError(errorStatus, F("Could not set the motor speed"));
+			processError(errorStatus, "Could not set the " + servoMotor->name + " motor speed");
 		} else {
 			hasNotMoved = false;
 		}
@@ -1101,12 +1102,12 @@ uint16_t stopMotors (void) {
 	errorStatus = setMotorSpeed(&leftMotorM1, 0, false);
 
 	if (errorStatus != 0) {
-		processError(errorStatus, F("Could not set the speed for the LEFT motor"));
+		processError(errorStatus, "Could not set the speed for the " + leftMotorM1.name + " motor");
 	} else {
 		errorStatus = setMotorSpeed(&rightMotorM2, 0, true);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("Could not set the speed for the RIGHT motor"));
+			processError(errorStatus, "Could not set the speed for the " + rightMotorM2.name + " motor");
 		} else {
 			delay(2000);
 			hasNotMoved = true;
@@ -1362,7 +1363,7 @@ void setup (void) {
 	console.print(BUILD_VERSION);
 	console.print(F(" on "));
 	console.println(BUILD_DATE);
-	console.print(F("for "));
+	console.print(F("     for the "));
 	console.print(BUILD_BOARD);
 	console.println(F("."));
 
@@ -1577,7 +1578,6 @@ void loop (void) {
 	}
 
 	//	Find the closest and farthest objects
-	console.println(F("Finding the closest and farthest objects.."));
 	distObject = findDistanceObjects();
 
 	/*

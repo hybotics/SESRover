@@ -1,7 +1,7 @@
 /*
 	Program:   SES Rover, Main navigation and reactive behaviors sketch
-	Date:      19-Apr-2014
-	Version:   0.2.0 ALPHA
+	Date:      20-Apr-2014
+	Version:   0.2.1 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
 					Lynxmotion's SSC-32 Servo Controller,
@@ -25,9 +25,9 @@
 
 #define	I2C_ADDRESS						0x50
 
-#define	BUILD_VERSION					"0.2.0"
-#define	BUILD_DATE 						"19-Apr-2014"
-#define	BUILD_BOARD						"Arduino Mega 2560 R3 with Lynxmotion's SSC-32"
+#define	BUILD_VERSION					"0.2.1"
+#define	BUILD_DATE 						"20-Apr-2014"
+#define	BUILD_BOARD						"Arduino Mega 2560 R3, with Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
 
