@@ -908,30 +908,10 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
 
 	lastRoutine = String(F("moveServoPw"));
 
-	displayServo(servo);
-
 	servo->error = 0;
-
-	console.print(F("(moveServoPw) servoPosition = "));
-	console.print(servoPosition);
-	console.print(F(" uS, term = "));
-
-	if (term == true) {
-		console.println(F("true."));
-	} else {
-		console.println(F("false."));
-	}
-
-	console.println();
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
 		ssc32Command = ssc32Command + "#" + String(servo->pin) + "P" + String(servoPosition + servo->offset) + " ";
-
-		ssc32.print(F("#"));
-		ssc32.print(servo->pin);
-		ssc32.print(F(" P"));
-		ssc32.print(servoPosition + servo->offset);
-		ssc32.print(F(" "));
 
 		servo->msPulse = servoPosition;
 		servo->angle = ((servoPosition - SERVO_CENTER_MS) / 10);
@@ -948,27 +928,17 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
 		//  Add servo move speed
 		if (moveSpeed != 0) {
 			ssc32Command = ssc32Command + " S" + String(moveSpeed) + " ";
-
-			ssc32.print(F(" S"));
-			ssc32.print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term == true) {
 			if (moveTime != 0) {
 				ssc32Command = ssc32Command + " T" + String(moveTime) + String(" ");
-
-				ssc32.print(F(" T"));
-				ssc32.print(moveTime);
 			}
 
 			ssc32Command = ssc32Command + asciiCR;
 
-			console.print("(moveServoPw) command = '");
-			console.print(ssc32Command);
-			console.println("'");
-
-//			ssc32.print(ssc32Command);
+			ssc32.print(ssc32Command);
 			ssc32.println();
 
 			ssc32Command = "";
@@ -1040,7 +1010,7 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 	if (startDeg > stopDeg) {
 		//	Start can't be greater than stop
 		errorStatus = 401;
-	} else if (((SERVO_MAX_DEGREES == 90) && ((startDeg < -90) || (stopDeg > 90))) || ((SERVO_MAX_DEGREES == 180) && ((startDeg < 0) || (stopDeg > 180)))) {
+	} else if (((pan->maxDegrees == 90) && ((startDeg < -90) || (stopDeg > 90))) || ((pan->maxDegrees == 180) && ((startDeg < 0) || (stopDeg > 180)))) {
 		//	One or more parameters is outside of the valid range
 		errorStatus = 402;
 	} else if ((startDeg < pan->minPulse) || (stopDeg > pan->maxPulse)) {
@@ -1072,10 +1042,10 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 			console.println(F("Scanning the area.."));
 
 			for (positionDeg = startDeg; positionDeg < stopDeg; positionDeg += incrDeg) {
-				errorStatus = moveServoDegrees(pan, positionDeg, 0, 0, true);
+				errorStatus = moveServoDegrees(pan, positionDeg, true);
 
 				if (errorStatus != 0) {
-					processError(errorStatus, F("Could not move the PAN servo"));
+					processError(errorStatus, "Could not move the " + pan->descr + " servo");
 					break;
 				} else {
 					//	Take a reading from each pan/tilt sensor in cm
