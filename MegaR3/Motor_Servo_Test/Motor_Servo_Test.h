@@ -135,8 +135,8 @@
 
 #define	SERVO_GRIP_LIFT_PIN				0
 #define SERVO_GRIP_LIFT_NAME			"Grip Lift"
-#define	SERVO_GRIP_LIFT_HOME			650
-#define	SERVO_GRIP_LIFT_OFFSET			-90
+#define	SERVO_GRIP_LIFT_HOME			900
+#define	SERVO_GRIP_LIFT_OFFSET			0
 #define	SERVO_GRIP_LIFT_MIN				500
 #define	SERVO_GRIP_LIFT_MAX				2500
 
@@ -154,30 +154,6 @@
 #define	SERVO_GRIP_GRAB_MIN				500
 #define	SERVO_GRIP_GRAB_MAX				2500
 
-/*
-	There isn't anything on pin 3
-*/
-
-#define	SERVO_MOTOR_NEUTRAL				0
-#define	SERVO_MOTOR_MIN_SPEED			-1000
-#define	SERVO_MOTOR_MAX_SPEED			1000
-
-#define	SERVO_MOTOR_LEFT_PIN			4
-#define SERVO_MOTOR_LEFT_NAME			"Left"
-#define	SERVO_MOTOR_LEFT_NEUTRAL		SERVO_MOTOR_NEUTRAL
-#define	SERVO_MOTOR_LEFT_OFFSET	        0
-#define	SERVO_MOTOR_LEFT_DIRECTION		false
-#define	SERVO_MOTOR_LEFT_MIN			500
-#define	SERVO_MOTOR_LEFT_MAX			2500
-
-#define	SERVO_MOTOR_RIGHT_PIN	        5
-#define SERVO_MOTOR_RIGHT_NAME			"Right"
-#define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
-#define	SERVO_MOTOR_RIGHT_OFFSET		50
-#define SERVO_MOTOR_RIGHT_DIRECTION		true
-#define	SERVO_MOTOR_RIGHT_MIN			500
-#define	SERVO_MOTOR_RIGHT_MAX			2500
-
 #define	SERVO_PAN_PIN					6
 #define SERVO_PAN_NAME					"Pan"
 #define	SERVO_PAN_HOME					SERVO_CENTER_MS
@@ -187,10 +163,34 @@
 
 #define	SERVO_TILT_PIN					7
 #define SERVO_TILT_NAME					"Tilt"
-#define	SERVO_TILT_HOME					SERVO_CENTER_MS
+#define	SERVO_TILT_HOME					1400
 #define	SERVO_TILT_OFFSET				0
 #define	SERVO_TILT_DOWN_MIN				500
 #define	SERVO_TILT_UP_MAX				2000
+
+/*
+	There isn't anything on pin 3
+*/
+
+#define	SERVO_MOTOR_NEUTRAL				0
+#define	SERVO_MOTOR_MIN_SPEED			-1000
+#define	SERVO_MOTOR_MAX_SPEED			1000
+
+#define	SERVO_MOTOR_LEFT_PIN			4
+#define SERVO_MOTOR_LEFT_NAME			"Left Motor"
+#define	SERVO_MOTOR_LEFT_NEUTRAL		SERVO_MOTOR_NEUTRAL
+#define	SERVO_MOTOR_LEFT_OFFSET	        0
+#define	SERVO_MOTOR_LEFT_DIRECTION		false
+#define	SERVO_MOTOR_LEFT_MIN			500
+#define	SERVO_MOTOR_LEFT_MAX			2500
+
+#define	SERVO_MOTOR_RIGHT_PIN	        5
+#define SERVO_MOTOR_RIGHT_NAME			"Right Motor"
+#define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
+#define	SERVO_MOTOR_RIGHT_OFFSET		50
+#define SERVO_MOTOR_RIGHT_DIRECTION		true
+#define	SERVO_MOTOR_RIGHT_MIN			500
+#define	SERVO_MOTOR_RIGHT_MAX			2500
 
 /*********************************************************************/
 /*	Structs for data we store about various onboard devices	*/
@@ -278,7 +278,7 @@ struct AreaScanReading {
 //	Continuous Rotation Servos - R/C PWM control mode parameters
 struct ServoMotor {
 	uint8_t pin;
-	String name;
+	String descr;
 
 	int offset;
 	bool forward;
@@ -293,13 +293,13 @@ struct ServoMotor {
 
 //	DC Motors - Packet Serial control mode parameters
 struct Motor {
-	String name;
+	String descr;
 
 	uint32_t encoder;
 	uint8_t encoderStatus;
 	bool encoderValid;
 
-	uint32_t speed;
+	uint32_t mspeed;
 	uint8_t speedStatus;
 	bool speedValid;
 
@@ -314,7 +314,7 @@ struct Motor {
 //	Standard R/C Servos
 struct Servo {
 	uint8_t pin;
-	String name;
+	String descr;
 
 	int offset;
 	uint16_t homePos;

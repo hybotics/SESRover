@@ -117,6 +117,9 @@
 		on the seven segment and matrix displays.
 */
 
+//	SSC-32 command variable
+String ssc32Command = "";
+
 //	Date display
 boolean displayDate = true;
 uint8_t dateMinuteCount = 0;
@@ -610,6 +613,37 @@ void displayPING (void) {
 	console.println();
 }
 
+/*
+	Display servo data
+*/
+void displayServo (Servo *servo) {
+	console.println("Servo '" + servo->descr + "':");
+
+	console.print(F("Pin #"));
+	console.print(servo->pin);
+	console.print(F(", Offset: "));
+	console.print(servo->offset);
+	console.print(F(", Home: "));
+	console.print(servo->homePos);
+	console.print(F(" uS, Pulse: "));
+	console.print(servo->msPulse);
+	console.println(F(" uS."));
+
+	console.print(F("Angle: "));
+	console.print(servo->angle);
+	console.print(F(" deg, Min Pulse: "));
+	console.print(servo->minPulse);
+	console.print(F(" uS, Max Pulse: "));
+	console.print(servo->maxPulse);
+	console.print(F(" uS, Max Degrees: "));
+	console.print(servo->maxDegrees);
+	console.print(F(" deg, Error: "));
+	console.print(servo->error);
+	console.println(F("."));
+
+	console.println();
+}
+
 /************************************************************/
 /*	Sensor reading routines									*/
 /************************************************************/
@@ -870,16 +904,34 @@ DistanceObject findDistanceObjects () {
 */
 uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpeed = 0, int moveTime = 0) {
 	uint16_t errorStatus = 0;
+	char asciiCR = 13;
 
 	lastRoutine = String(F("moveServoPw"));
 
+	displayServo(servo);
+
 	servo->error = 0;
+
+	console.print(F("(moveServoPw) servoPosition = "));
+	console.print(servoPosition);
+	console.print(F(" uS, term = "));
+
+	if (term == true) {
+		console.println(F("true."));
+	} else {
+		console.println(F("false."));
+	}
+
+	console.println();
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
+		ssc32Command = ssc32Command + "#" + String(servo->pin) + "P" + String(servoPosition + servo->offset) + " ";
+
 		ssc32.print(F("#"));
 		ssc32.print(servo->pin);
 		ssc32.print(F(" P"));
 		ssc32.print(servoPosition + servo->offset);
+		ssc32.print(F(" "));
 
 		servo->msPulse = servoPosition;
 		servo->angle = ((servoPosition - SERVO_CENTER_MS) / 10);
@@ -887,24 +939,39 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
 		if (servo->maxDegrees == 180) {
 			servo->angle += 90;
 		}
-	} else if ((servoPosition < servo->minPulse) || (servoPosition > servo->maxPulse)) {
+	}
+
+	if ((servoPosition < servo->minPulse) || (servoPosition > servo->maxPulse)) {
 		errorStatus = 201;
 		processError(errorStatus, F("Servo pulse is out of range"));
 	} else {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
+			ssc32Command = ssc32Command + " S" + String(moveSpeed) + " ";
+
 			ssc32.print(F(" S"));
 			ssc32.print(moveSpeed);
 		}
     
 		//  Terminate the command
-		if (term) {
+		if (term == true) {
 			if (moveTime != 0) {
+				ssc32Command = ssc32Command + " T" + String(moveTime) + String(" ");
+
 				ssc32.print(F(" T"));
 				ssc32.print(moveTime);
 			}
 
+			ssc32Command = ssc32Command + asciiCR;
+
+			console.print("(moveServoPw) command = '");
+			console.print(ssc32Command);
+			console.println("'");
+
+//			ssc32.print(ssc32Command);
 			ssc32.println();
+
+			ssc32Command = "";
 		}
   	}
 
@@ -1063,6 +1130,7 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 
 		//	Setup for the call to moveServoPw()
 		servo.pin = servoMotor->pin;
+		servo.descr = String(servoMotor->descr);
 		servo.offset = servoMotor->offset;
 		servo.homePos = servoMotor->neutral;
 		servo.minPulse = servoMotor->minPulse;
@@ -1081,7 +1149,7 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 
 		if (errorStatus != 0) {
 			servoMotor->error = servo.error;
-			processError(errorStatus, "Could not set the " + servoMotor->name + " motor speed");
+			processError(errorStatus, "Could not set the " + servoMotor->descr + " motor speed");
 		} else {
 			hasNotMoved = false;
 		}
@@ -1102,12 +1170,12 @@ uint16_t stopMotors (void) {
 	errorStatus = setMotorSpeed(&leftMotorM1, 0, false);
 
 	if (errorStatus != 0) {
-		processError(errorStatus, "Could not set the speed for the " + leftMotorM1.name + " motor");
+		processError(errorStatus, "Could not set the speed for the " + leftMotorM1.descr + " motor");
 	} else {
 		errorStatus = setMotorSpeed(&rightMotorM2, 0, true);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, "Could not set the speed for the " + rightMotorM2.name + " motor");
+			processError(errorStatus, "Could not set the speed for the " + rightMotorM2.descr + " motor");
 		} else {
 			delay(2000);
 			hasNotMoved = true;
@@ -1129,20 +1197,20 @@ uint16_t initGripper (Servo *lift, Servo *wrist, Servo *grab) {
 	console.println("Initializing Gripper Position..");
   
 	//  Put the 3DOF gripper at home position
-	errorStatus = moveServoPw(grab, SERVO_GRIP_GRAB_HOME, 0, 0, false);
+	errorStatus = moveServoPw(lift, lift->homePos, false);
 
 	if (errorStatus != 0) {
-		processError(errorStatus, F("Could not initialize the GRAB servo"));
+		processError(errorStatus, "Could not initialize the " + grab->descr + " servo");
 	} else {
-		errorStatus = moveServoPw(lift, SERVO_GRIP_LIFT_HOME + 150, 0, 0, false);
+		errorStatus = moveServoPw(wrist, wrist->homePos, false);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("Could not initialize the GRIP servo"));
+			processError(errorStatus, "Could not initialize the " + wrist->descr + " servo");
 		} else {
-			errorStatus = moveServoPw(wrist, SERVO_GRIP_WRIST_HOME, 0, 0, true);
+			errorStatus = moveServoPw(grab, grab->homePos, true);
 
 			if (errorStatus != 0) {
-				processError(errorStatus, F("Could not initialize the WRIST servo"));
+				processError(errorStatus, "Could not initialize the " + grab->descr + " servo");
 			}
 		}
 	}
@@ -1161,15 +1229,15 @@ uint16_t initPanTilt (Servo *pan, Servo *tilt) {
 	console.println(F("Initializing Pan/Tilt Position.."));
 
 	//  Put the front pan/tilt at home position
-	errorStatus = moveServoPw(pan, SERVO_PAN_HOME, 0, 0, false);
+	errorStatus = moveServoPw(pan, pan->homePos, false);
 
 	if (errorStatus != 0) {
-		processError(errorStatus, F("Could not initialize the PAN servo"));
+		processError(errorStatus, "Could not initialize the " + pan->descr + " servo");
 	} else {
-		errorStatus = moveServoPw(tilt, SERVO_TILT_HOME, 0, 0, true);
+		errorStatus = moveServoPw(tilt, tilt->homePos, true);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("Could not initialize the TILT servo"));
+			processError(errorStatus, "Could not initialize the " + tilt->descr + " servo");
 		}
 	}
 
@@ -1189,14 +1257,14 @@ uint16_t initMotors (ServoMotor *leftM1, ServoMotor *rightM2) {
 	errorStatus = setMotorSpeed(leftM1, SERVO_MOTOR_LEFT_NEUTRAL, false);
 
 	if (errorStatus != 0) {
-		processError(errorStatus, F("Could not set the speed for the LEFT motor"));
+		processError(errorStatus, "Could not set the speed for the " + leftM1->descr + " motor");
 	} else {
 		leftM1->forward = SERVO_MOTOR_LEFT_DIRECTION;
 
 		errorStatus = setMotorSpeed(rightM2, SERVO_MOTOR_RIGHT_NEUTRAL, true);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("Could not set the speed for the RIGHT motor"));
+			processError(errorStatus, "Could not set the speed for the " + rightM2->descr + " motor");
 		} else {
 			rightM2->forward = SERVO_MOTOR_RIGHT_DIRECTION;
 		}
@@ -1288,63 +1356,63 @@ uint16_t initSensors (void) {
 /*
 	Initialize servos to defaults
 */
-void initServos (Servo *lift, Servo *wrist, Servo *grab, Servo *pan, Servo *tilt) {
+void initServos (void) {
 	lastRoutine = String(F("initServos"));
 
-	lift->pin = SERVO_GRIP_LIFT_PIN;
-	lift->name = SERVO_GRIP_LIFT_NAME;
-	lift->offset = SERVO_GRIP_LIFT_OFFSET;
-	lift->homePos = SERVO_GRIP_LIFT_HOME;
-	lift->msPulse = 0;
-	lift->angle = 0;
-	lift->minPulse = SERVO_GRIP_LIFT_MIN;
-	lift->maxPulse = SERVO_GRIP_LIFT_MAX;
-	lift->maxDegrees = SERVO_MAX_DEGREES;
-	lift->error = 0;
+	gripLift.pin = SERVO_GRIP_LIFT_PIN;
+	gripLift.descr = String(SERVO_GRIP_LIFT_NAME);
+	gripLift.offset = SERVO_GRIP_LIFT_OFFSET;
+	gripLift.homePos = SERVO_GRIP_LIFT_HOME;
+	gripLift.msPulse = 0;
+	gripLift.angle = 0;
+	gripLift.minPulse = SERVO_GRIP_LIFT_MIN;
+	gripLift.maxPulse = SERVO_GRIP_LIFT_MAX;
+	gripLift.maxDegrees = SERVO_MAX_DEGREES;
+	gripLift.error = 0;
 
-	wrist->pin = SERVO_GRIP_WRIST_PIN;
-	wrist->name = SERVO_GRIP_WRIST_NAME;
-	wrist->offset = SERVO_GRIP_WRIST_OFFSET;
-	wrist->homePos = SERVO_GRIP_WRIST_HOME;
-	wrist->msPulse = 0;
-	wrist->angle = 0;
-	wrist->minPulse = SERVO_GRIP_WRIST_MIN;
-	wrist->maxPulse = SERVO_GRIP_WRIST_MAX;
-	wrist->maxDegrees = SERVO_MAX_DEGREES;
-	wrist->error = 0;
+	gripWrist.pin = SERVO_GRIP_WRIST_PIN;
+	gripWrist.descr = String(SERVO_GRIP_WRIST_NAME);
+	gripWrist.offset = SERVO_GRIP_WRIST_OFFSET;
+	gripWrist.homePos = SERVO_GRIP_WRIST_HOME;
+	gripWrist.msPulse = 0;
+	gripWrist.angle = 0;
+	gripWrist.minPulse = SERVO_GRIP_WRIST_MIN;
+	gripWrist.maxPulse = SERVO_GRIP_WRIST_MAX;
+	gripWrist.maxDegrees = SERVO_MAX_DEGREES;
+	gripWrist.error = 0;
 
-	grab->pin = SERVO_GRIP_GRAB_PIN;
-	grab->name = SERVO_GRIP_GRAB_NAME;
-	grab->offset = SERVO_GRIP_GRAB_OFFSET;
-	grab->homePos = SERVO_GRIP_GRAB_HOME;
-	grab->msPulse = 0;
-	grab->angle = 0;
-	grab->minPulse = SERVO_GRIP_GRAB_MIN;
-	grab->maxPulse = SERVO_GRIP_GRAB_MAX;
-	grab->maxDegrees = SERVO_MAX_DEGREES;
-	grab->error = 0;
+	gripGrab.pin = SERVO_GRIP_GRAB_PIN;
+	gripGrab.descr = String(SERVO_GRIP_GRAB_NAME);
+	gripGrab.offset = SERVO_GRIP_GRAB_OFFSET;
+	gripGrab.homePos = SERVO_GRIP_GRAB_HOME;
+	gripGrab.msPulse = 0;
+	gripGrab.angle = 0;
+	gripGrab.minPulse = SERVO_GRIP_GRAB_MIN;
+	gripGrab.maxPulse = SERVO_GRIP_GRAB_MAX;
+	gripGrab.maxDegrees = SERVO_MAX_DEGREES;
+	gripGrab.error = 0;
 
-	pan->pin = SERVO_PAN_PIN;
-	pan->name = SERVO_PAN_NAME;
-	pan->offset = SERVO_PAN_OFFSET;
-	pan->homePos = SERVO_PAN_HOME;
-	pan->msPulse = 0;
-	pan->angle = 0;
-	pan->minPulse = SERVO_PAN_LEFT_MIN;
-	pan->maxPulse = SERVO_PAN_RIGHT_MAX;
-	pan->maxDegrees = SERVO_MAX_DEGREES;
-	pan->error = 0;
+	pan.pin = SERVO_PAN_PIN;
+	pan.descr = String(SERVO_PAN_NAME);
+	pan.offset = SERVO_PAN_OFFSET;
+	pan.homePos = SERVO_PAN_HOME;
+	pan.msPulse = 0;
+	pan.angle = 0;
+	pan.minPulse = SERVO_PAN_LEFT_MIN;
+	pan.maxPulse = SERVO_PAN_RIGHT_MAX;
+	pan.maxDegrees = SERVO_MAX_DEGREES;
+	pan.error = 0;
 
-	tilt->pin = SERVO_TILT_PIN;
-	tilt->name = SERVO_TILT_NAME;
-	tilt->offset = SERVO_TILT_OFFSET;
-	tilt->homePos = SERVO_TILT_HOME;
-	tilt->msPulse = 0;
-	tilt->angle = 0;
-	tilt->minPulse = SERVO_TILT_DOWN_MIN;
-	tilt->maxPulse = SERVO_TILT_UP_MAX;
-	tilt->maxDegrees = SERVO_MAX_DEGREES;
-	tilt->error = 0;
+	tilt.pin = SERVO_TILT_PIN;
+	tilt.descr = String(SERVO_TILT_NAME);
+	tilt.offset = SERVO_TILT_OFFSET;
+	tilt.homePos = SERVO_TILT_HOME;
+	tilt.msPulse = 0;
+	tilt.angle = 0;
+	tilt.minPulse = SERVO_TILT_DOWN_MIN;
+	tilt.maxPulse = SERVO_TILT_UP_MAX;
+	tilt.maxDegrees = SERVO_MAX_DEGREES;
+	tilt.error = 0;
 }
 
 /************************************************************/
@@ -1383,7 +1451,7 @@ void setup (void) {
 	digitalWrite(HEARTBEAT_LED, LOW);
 
  	//  Initialize all servos
- 	initServos(&gripLift, &gripWrist, &gripGrab, &pan, &tilt);
+ 	initServos();
 
 	//	Initialize all sensors
 	errorStatus = initSensors();
