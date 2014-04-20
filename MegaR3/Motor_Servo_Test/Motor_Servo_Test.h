@@ -252,10 +252,16 @@ struct HeatSensor {
 
 struct DistanceObject {
 	uint8_t closestPING;
-	uint8_t farthestPING;
+	uint16_t closestPosPING;
 
 	uint8_t closestIR;
+	uint16_t closestPosIR;
+
+	uint8_t farthestPING;
+	uint16_t farthestPosPING;
+
 	uint8_t farthestIR;
+	uint16_t farthestPosIR;
 };
 
 //	For areaScan() readings

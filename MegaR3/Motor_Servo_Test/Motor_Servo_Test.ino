@@ -67,6 +67,10 @@
 
 					Changed the readIMU() and displayIMUData() routines to call the respective sensor
 						reading and display routines.
+
+					Created the findDistanceObjects() routine and DistanceObject struct.
+
+					Added display of distance objects in displayAreaScanReadings().
 					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -368,15 +372,31 @@ void displayAreaScanReadings (DistanceObject *distObj) {
 		console.println(F(" cm."));
 		console.println();
 
-		console.print(F("Closest object: PING: "));
+		console.print(F("Closest object:"));
+		console.print(F("     PING: "));
 		console.print(distObj->closestPING);
-		console.print(F(", IR: "));
-		console.println(distObj->closestIR);
+		console.print(F(", at position "));
+		console.print(distObj->closestPosPING);
+		console.println(F(" degrees."));
 
-		console.print(F("Farthest object: PING: "));
+		console.print(F("     IR: "));
+		console.print(distObj->closestIR);
+		console.print(F(", at position "));
+		console.print(distObj->closestPosIR);
+		console.println(F(" degrees."));
+
+		console.print(F("Farthest object:"));
+		console.print(F("     PING: "));
 		console.print(distObj->farthestPING);
-		console.print(F(", IR: "));
-		console.println(distObj->farthestIR);
+		console.print(F(", at position "));
+		console.print(distObj->farthestPosPING);
+		console.println(F(" degrees."));
+
+		console.print(F("     IR: "));
+		console.print(distObj->farthestIR);
+		console.print(F(", at position "));
+		console.print(distObj->farthestPosIR);
+		console.println(F(" degrees."));
 
 		if (HAVE_COLOR_SENSOR) {
 			console.println();
@@ -811,7 +831,7 @@ int readParallaxPING (byte sensorNr, boolean units=true) {
 DistanceObject findDistanceObjects () {
 	uint8_t readingNr;
 
-	DistanceObject distObj = {0, 0, 0, 0};
+	DistanceObject distObj = {0, 0, 0, 0, 0, 0, 0, 0};
 
 	console.println(F("Finding the closest and farthest objects.."));
 
@@ -820,19 +840,23 @@ DistanceObject findDistanceObjects () {
 		//	Check for the closest object
 		if (areaScan[readingNr].ping < areaScan[distObj.closestPING].ping) {
 			distObj.closestPING = readingNr;
+			distObj.closestPosPING = areaScan[readingNr].positionDeg;
 		}
 
 		if (areaScan[readingNr].ir <=  areaScan[distObj.closestIR].ir) {
 			distObj.closestIR = readingNr;
+			distObj.closestPosIR = areaScan[readingNr].positionDeg;
 		}
 
 		//	Check for the farthest object
 		if (areaScan[readingNr].ping > areaScan[distObj.farthestPING].ping) {
 			distObj.farthestPING = readingNr;
+			distObj.farthestPosPING = areaScan[readingNr].positionDeg;
 		}
 
 		if (areaScan[readingNr].ir > areaScan[distObj.farthestIR].ir) {
 			distObj.farthestIR = readingNr;
+			distObj.farthestPosIR = areaScan[readingNr].positionDeg;
 		}
 	}
 
