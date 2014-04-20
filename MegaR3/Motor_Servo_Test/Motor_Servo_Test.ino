@@ -345,7 +345,7 @@ void wait (uint8_t nrSeconds) {
 /*	Display routines										*/
 /************************************************************/
 
-void displayAreaScanReadings (void) {
+void displayAreaScanReadings (AreaScanDistance *asData) {
 	uint8_t index;
 	AreaScanReading currentReading;
 
@@ -797,6 +797,37 @@ int readParallaxPING (byte sensorNr, boolean units=true) {
 /*	Lynxmotion SSC-32 Servo Controller routines						*/
 /********************************************************************/
 
+AreaScanDistance findDistanceObjects () {
+	uint8_t readingNr;
+
+	AreaScanDistance asData = {0, 0, 0, 0};
+
+	console.println(F("Finding the closest and farthest objects.."));
+
+	//	Find the closest and farthest objects
+	for (readingNr = 0; readingNr <= nrAreaReadings; readingNr++) {
+		//	Check for the closest object
+		if (areaScan[readingNr].ping < areaScan[asData.closestPING].ping) {
+			asData.closestPING = readingNr;
+		}
+
+		if (areaScan[readingNr].ir <=  areaScan[asData.closestIR].ir) {
+			asData.closestIR = readingNr;
+		}
+
+		//	Check for the farthest object
+		if (areaScan[readingNr].ping > areaScan[asData.farthestPING].ping) {
+			asData.farthestPING = readingNr;
+		}
+
+		if (areaScan[readingNr].ir > areaScan[asData.farthestIR].ir) {
+			asData.farthestIR = readingNr;
+		}
+	}
+
+	return asData;
+}
+
 /*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use HardwareSerial2()
 */
@@ -1023,6 +1054,9 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 	return errorStatus;
 }
 
+/*
+	Stop both motors NOW
+*/
 uint16_t stopMotors (void) {
 	uint16_t errorStatus = 0;
 
@@ -1353,7 +1387,6 @@ void setup (void) {
 						if (errorStatus != 0) {
 							processError(errorStatus, F("Could not set speed for the RIGHT motor"));
 						} else {
-
 							delay(5000);
 
 							//	Stop the motors
@@ -1408,6 +1441,8 @@ void setup (void) {
 /*	Runs forever											*/
 /************************************************************/
 void loop (void) {
+	uint16_t errorStatus = 0;
+
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
@@ -1421,6 +1456,7 @@ void loop (void) {
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
 
+	AreaScanDistance areaScanData;
 	ColorSensor colorData;
 	HeatSensor heatData;
 	InertialMeasurementUnit imuData;
@@ -1434,12 +1470,13 @@ void loop (void) {
 	// Pulse the heartbeat LED
 	pulseDigital(HEARTBEAT_LED, 500);
 
-	if (HAVE_DS1307_RTC) {
-		currentMinute = now.minute();
-	}
+	currentMinute = now.minute();
+
+	//	Send something wirelessly
+	xbee.println(F("Hello World, I'm wireless!"));
 
 	/*
-		This is code that only runs one time, to initialize
+		This is code that only runs ONE time, to initialize
 			special cases.
 	*/
 	if (firstLoop) {
@@ -1454,6 +1491,10 @@ void loop (void) {
 		imuData = readIMU();
 
 		displayIMUData(&imuData);
+
+		/*
+			Put Accelerometer, Compass, and Orientation reactive behaviors HERE
+		*/
 	}
 
 	console.println(F("Getting Distance Sensor readings.."));
@@ -1480,39 +1521,10 @@ void loop (void) {
 		Put distance related reactive behaviors HERE
 	*/
 
-	//	Find the closest and farthest objects
-	if (areaScanValid && hasNotMoved) {
-		areaClosestReadingPING = 0;
-		areaFarthestReadingPING = 0;
-		areaClosestReadingIR = 0;
-		areaFarthestReadingIR = 0;
+	if (ping[PING_FRONT_CENTER] < PING_MIN_DISTANCE_CM) {
+		stopMotors();
+		errorStatus = scanArea(&pan, -90, 90, 10);
 
-		console.println(F("Finding the closest and farthest objects.."));
-
-		//	Find the closest and farthest objects
-		for (readingNr = 0; readingNr <= nrAreaReadings; readingNr++) {
-			//	Check for the closest object
-			if (areaScan[readingNr].ping < areaScan[areaClosestReadingPING].ping) {
-				areaClosestReadingPING = readingNr;
-			}
-
-			if (areaScan[readingNr].ir <=  areaScan[areaClosestReadingIR].ir) {
-				areaClosestReadingIR = readingNr;
-			}
-
-			//	Check for the farthest object
-			if (areaScan[readingNr].ping > areaScan[areaFarthestReadingPING].ping) {
-				areaFarthestReadingPING = readingNr;
-			}
-
-			if (areaScan[readingNr].ir > areaScan[areaFarthestReadingIR].ir) {
-				areaFarthestReadingIR = readingNr;
-			}
-		}
-
-		displayAreaScanReadings();
-	} else {
-		console.println(F("Area scan is not valid.."));
 	}
 
 	//	Read the TCS34725 RGB color sensor, if we have it
@@ -1528,6 +1540,14 @@ void loop (void) {
 	
 		displayHeatSensorData(&heatData);
 	}
+
+	//	Find the closest and farthest objects
+	console.println(F("Finding the closest and farthest objects.."));
+	areaScanData = findDistanceObjects();
+
+	/*
+		Put object tracking behaviors HERE
+	*/
 
 	console.println();
 
@@ -1546,7 +1566,6 @@ void loop (void) {
 	/*
 		Update the information display control variables
 	*/
-
 	if (DISPLAY_INFORMATION) {
 		displayDate = (dateMinuteCount == DISPLAY_DATE_FREQ_MIN);
 		displayTemperature = (temperatureMinuteCount == DISPLAY_TEMPERATURE_FREQ_MIN);

@@ -55,7 +55,7 @@
 #define	HAVE_BMP180_TEMP				false
 
 /********************************************************/
-/*	Lynxmotion BotBoarduino (Arduino) settings 			*/
+/*	Arduino Mega R3 (Arduino) Settings 					*/
 /********************************************************/
 
 /*
@@ -101,6 +101,7 @@
 //	Parallax PING Untrasonic sensors
 #define	MAX_NUMBER_PING					1
 #define	PING_PIN_BASE					24			//	Digital 10
+#define	PING_MIN_DISTANCE_CM			12.0 		//	In CM, which is approximately 5"
 
 #define	PING_FRONT_CENTER				0
 #define	PING_FRONT_LEFT					1
@@ -108,7 +109,8 @@
 
 //	Sharp GP2Y0A21YK0F IR sensors
 #define	MAX_NUMBER_IR					1
-#define	IR_PIN_BASE						6			//	Analog 0
+#define	IR_PIN_BASE						6			//	Analog 6
+#define IR_MIN_DISTANCE_CM				12.0 		//	In CM, which is approximately 5"
 
 #define	IR_FRONT_CENTER					0
 #define	IR_BACK_CENTER					1
@@ -156,7 +158,7 @@
 	There isn't anything on pin 3
 */
 
-#define	SERVO_MOTOR_NEUTRAL				1500
+#define	SERVO_MOTOR_NEUTRAL				0
 #define	SERVO_MOTOR_MIN_SPEED			-1000
 #define	SERVO_MOTOR_MAX_SPEED			1000
 
@@ -186,7 +188,7 @@
 #define	SERVO_TILT_PIN					7
 #define SERVO_TILT_NAME					"Tilt"
 #define	SERVO_TILT_HOME					SERVO_CENTER_MS
-#define	SERVO_TILT_OFFSET				25
+#define	SERVO_TILT_OFFSET				0
 #define	SERVO_TILT_DOWN_MIN				500
 #define	SERVO_TILT_UP_MAX				2000
 
@@ -248,6 +250,14 @@ struct HeatSensor {
 	float objectTempC;
 };
 
+struct AreaScanDistance {
+	uint8_t closestPING;
+	uint8_t farthestPING;
+
+	uint8_t closestIR;
+	uint8_t farthestIR;
+};
+
 //	For areaScan() readings
 struct AreaScanReading {
 	float ir;
@@ -271,6 +281,7 @@ struct ServoMotor {
 	uint16_t maxPulse;
 
 	uint16_t pulse;
+
 	uint16_t error;
 };
 
