@@ -345,7 +345,7 @@ void wait (uint8_t nrSeconds) {
 /*	Display routines										*/
 /************************************************************/
 
-void displayAreaScanReadings (AreaScanDistance *asData) {
+void displayAreaScanReadings (DistanceObject *distObj) {
 	uint8_t index;
 	AreaScanReading currentReading;
 
@@ -797,35 +797,35 @@ int readParallaxPING (byte sensorNr, boolean units=true) {
 /*	Lynxmotion SSC-32 Servo Controller routines						*/
 /********************************************************************/
 
-AreaScanDistance findDistanceObjects () {
+DistanceObject findDistanceObjects () {
 	uint8_t readingNr;
 
-	AreaScanDistance asData = {0, 0, 0, 0};
+	DistanceObject distObj = {0, 0, 0, 0};
 
 	console.println(F("Finding the closest and farthest objects.."));
 
 	//	Find the closest and farthest objects
 	for (readingNr = 0; readingNr <= nrAreaReadings; readingNr++) {
 		//	Check for the closest object
-		if (areaScan[readingNr].ping < areaScan[asData.closestPING].ping) {
-			asData.closestPING = readingNr;
+		if (areaScan[readingNr].ping < areaScan[distObj.closestPING].ping) {
+			distObj.closestPING = readingNr;
 		}
 
-		if (areaScan[readingNr].ir <=  areaScan[asData.closestIR].ir) {
-			asData.closestIR = readingNr;
+		if (areaScan[readingNr].ir <=  areaScan[distObj.closestIR].ir) {
+			distObj.closestIR = readingNr;
 		}
 
 		//	Check for the farthest object
-		if (areaScan[readingNr].ping > areaScan[asData.farthestPING].ping) {
-			asData.farthestPING = readingNr;
+		if (areaScan[readingNr].ping > areaScan[distObj.farthestPING].ping) {
+			distObj.farthestPING = readingNr;
 		}
 
-		if (areaScan[readingNr].ir > areaScan[asData.farthestIR].ir) {
-			asData.farthestIR = readingNr;
+		if (areaScan[readingNr].ir > areaScan[distObj.farthestIR].ir) {
+			distObj.farthestIR = readingNr;
 		}
 	}
 
-	return asData;
+	return distObj;
 }
 
 /*
@@ -1456,7 +1456,7 @@ void loop (void) {
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
 
-	AreaScanDistance areaScanData;
+	DistanceObject distObject;
 	ColorSensor colorData;
 	HeatSensor heatData;
 	InertialMeasurementUnit imuData;
@@ -1543,7 +1543,7 @@ void loop (void) {
 
 	//	Find the closest and farthest objects
 	console.println(F("Finding the closest and farthest objects.."));
-	areaScanData = findDistanceObjects();
+	distObject = findDistanceObjects();
 
 	/*
 		Put object tracking behaviors HERE

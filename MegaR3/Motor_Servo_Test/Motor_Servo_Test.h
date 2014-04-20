@@ -250,7 +250,7 @@ struct HeatSensor {
 	float objectTempC;
 };
 
-struct AreaScanDistance {
+struct DistanceObject {
 	uint8_t closestPING;
 	uint8_t farthestPING;
 
