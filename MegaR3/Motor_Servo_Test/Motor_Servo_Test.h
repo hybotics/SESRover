@@ -1,7 +1,7 @@
 /*
 	Program:   SES Rover, Main navigation and reactive behaviors sketch
-	Date:      18-Apr-2014
-	Version:   0.1.0 ALPHA
+	Date:      19-Apr-2014
+	Version:   0.2.0 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
 					Lynxmotion's SSC-32 Servo Controller,
@@ -25,8 +25,8 @@
 
 #define	I2C_ADDRESS						0x50
 
-#define	BUILD_VERSION					"0.1.0"
-#define	BUILD_DATE 						"18-Apr-2014"
+#define	BUILD_VERSION					"0.2.0"
+#define	BUILD_DATE 						"19-Apr-2014"
 #define	BUILD_BOARD						"Arduino Mega 2560 R3 with Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
@@ -42,9 +42,17 @@
 #define	DISPLAY_TIME_FREQ_MIN			15
 #define	DISPLAY_TEMPERATURE_FREQ_MIN	15
 
+//	Optional Sensors
 #define HAVE_COLOR_SENSOR				false
 #define HAVE_HEAT_SENSOR				false
+#define HAVE_DS1307_RTC					false
+
 #define HAVE_10DOF_IMU					false
+
+//	NOTE: These three are all contained on the 10DOF IMU board
+#define	HAVE_LSM303DLHC_ACCEL			false
+#define	HAVE_L3GD20_GYRO				false
+#define	HAVE_BMP180_TEMP				false
 
 /********************************************************/
 /*	Lynxmotion BotBoarduino (Arduino) settings 			*/
@@ -58,11 +66,11 @@
 #define	SERIAL_CONSOLE_RX_PIN			0
 #define	SERIAL_CONSOLE_TX_PIN			1
 
-//	Hardware Serial1: 
+//	Hardware Serial1: Lynxmotion SSC-32 Servo Controller
 #define	SERIAL_SSC32_RX_PIN				19
 #define	SERIAL_SSC32_TX_PIN				18
 
-//	Hardware Serial2: Lynxmotion SSC-32
+//	Hardware Serial2: XBee (ZigBee) Mesh Wireless adapter
 #define	SERIAL_XBEE_RX_PIN				17
 #define	SERIAL_XBEE_TX_PIN				16
 
@@ -92,7 +100,7 @@
 
 //	Parallax PING Untrasonic sensors
 #define	MAX_NUMBER_PING					1
-#define	PING_PIN_BASE					10			//	Digital 10
+#define	PING_PIN_BASE					24			//	Digital 10
 
 #define	PING_FRONT_CENTER				0
 #define	PING_FRONT_LEFT					1
@@ -100,7 +108,7 @@
 
 //	Sharp GP2Y0A21YK0F IR sensors
 #define	MAX_NUMBER_IR					1
-#define	IR_PIN_BASE						0			//	Analog 0
+#define	IR_PIN_BASE						6			//	Analog 0
 
 #define	IR_FRONT_CENTER					0
 #define	IR_BACK_CENTER					1
@@ -124,18 +132,21 @@
 #define	SERVO_CENTER_MS					1500
 
 #define	SERVO_GRIP_LIFT_PIN				0
+#define SERVO_GRIP_LIFT_NAME			"Grip Lift"
 #define	SERVO_GRIP_LIFT_HOME			650
 #define	SERVO_GRIP_LIFT_OFFSET			-90
 #define	SERVO_GRIP_LIFT_MIN				500
 #define	SERVO_GRIP_LIFT_MAX				2500
 
 #define	SERVO_GRIP_WRIST_PIN			1
+#define SERVO_GRIP_WRIST_NAME			"Grip Wrist"
 #define	SERVO_GRIP_WRIST_HOME			600
 #define	SERVO_GRIP_WRIST_OFFSET			0
 #define	SERVO_GRIP_WRIST_MIN			500
 #define	SERVO_GRIP_WRIST_MAX			2500
 
 #define	SERVO_GRIP_GRAB_PIN				2
+#define SERVO_GRIP_GRAB_NAME			"Grip Grab"
 #define	SERVO_GRIP_GRAB_HOME			2500
 #define	SERVO_GRIP_GRAB_OFFSET			0
 #define	SERVO_GRIP_GRAB_MIN				500
@@ -150,6 +161,7 @@
 #define	SERVO_MOTOR_MAX_SPEED			1000
 
 #define	SERVO_MOTOR_LEFT_PIN			4
+#define SERVO_MOTOR_LEFT_NAME			"Left"
 #define	SERVO_MOTOR_LEFT_NEUTRAL		SERVO_MOTOR_NEUTRAL
 #define	SERVO_MOTOR_LEFT_OFFSET	        0
 #define	SERVO_MOTOR_LEFT_DIRECTION		false
@@ -157,6 +169,7 @@
 #define	SERVO_MOTOR_LEFT_MAX			2500
 
 #define	SERVO_MOTOR_RIGHT_PIN	        5
+#define SERVO_MOTOR_RIGHT_NAME			"Right"
 #define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
 #define	SERVO_MOTOR_RIGHT_OFFSET		50
 #define SERVO_MOTOR_RIGHT_DIRECTION		true
@@ -164,12 +177,14 @@
 #define	SERVO_MOTOR_RIGHT_MAX			2500
 
 #define	SERVO_PAN_PIN					6
+#define SERVO_PAN_NAME					"Pan"
 #define	SERVO_PAN_HOME					SERVO_CENTER_MS
 #define	SERVO_PAN_OFFSET				-50
 #define	SERVO_PAN_LEFT_MIN				500
 #define	SERVO_PAN_RIGHT_MAX				2500
 
 #define	SERVO_TILT_PIN					7
+#define SERVO_TILT_NAME					"Tilt"
 #define	SERVO_TILT_HOME					SERVO_CENTER_MS
 #define	SERVO_TILT_OFFSET				25
 #define	SERVO_TILT_DOWN_MIN				500
@@ -179,22 +194,37 @@
 /*	Structs for data we store about various onboard devices	*/
 /*********************************************************************/
 
-//	The 10DOF Inertial Measurement Unit (IMU)
-struct InertialMeasurementUnit {
-	sensors_event_t accelEvent;
-	sensors_event_t compassEvent;
-	sensors_event_t tempEvent;
-	sensors_vec_t orientation;
-
-	float accelX, accelY, accelZ;
-	float compassX, compassY, compassZ;
-	int gyroX, gyroY, gyroZ;
-
+struct bmp180Data {
 	float seaLevelPressure;
 
 	bool temperatureValid;
 	float celsius;
 	float fahrenheit;
+};
+
+//	L3GD20 Gyroscope data
+struct l3gd20Data {
+	int X;
+	int Y;
+	int Z;
+};
+
+//	LSM303DLHC Accelerometer/Magnetometer (Compass) data
+struct lsm303dlhcData {
+	sensors_event_t accelEvent;
+	sensors_event_t compassEvent;
+
+	float accelX, accelY, accelZ;
+	float compassX, compassY, compassZ;
+};
+
+//	The 10DOF Inertial Measurement Unit (IMU)
+struct InertialMeasurementUnit {
+	bmp180Data tempData;
+	lsm303dlhcData accelCompassData;
+	l3gd20Data gyroData;
+
+	sensors_vec_t orientation;
 
 	bool pitchRollValid;
 	bool headingValid;
@@ -232,6 +262,7 @@ struct AreaScanReading {
 //	Continuous Rotation Servos - R/C PWM control mode parameters
 struct ServoMotor {
 	uint8_t pin;
+	String name;
 
 	int offset;
 	bool forward;
@@ -245,6 +276,8 @@ struct ServoMotor {
 
 //	DC Motors - Packet Serial control mode parameters
 struct Motor {
+	String name;
+
 	uint32_t encoder;
 	uint8_t encoderStatus;
 	bool encoderValid;
@@ -264,6 +297,7 @@ struct Motor {
 //	Standard R/C Servos
 struct Servo {
 	uint8_t pin;
+	String name;
 
 	int offset;
 	uint16_t homePos;

@@ -1,7 +1,7 @@
 /*
 	Program:      	SES Rover, Motor_Servo_Test.ino - Motor experimentation and test sketch
-	Date:         	18-Apr-2014
-	Version:      	0.1.0 ALPHA
+	Date:         	19-Apr-2014
+	Version:      	0.2.0 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
 						Lynxmotion's SSC-32 Servo Controller,
@@ -46,8 +46,29 @@
 					Added the readGP2Y0A21YK0F() routine to read the Sharp GP2Y0A21YK0F IR sensor
 
 					Changed the name of the readIR() routine to readGP2D12().
+
+					Changed the name of the readPING() routine to readParallaxPING().
 					-------------------------------------------------------------------------------
-						
+					v0.2.0 19-Apr-2014 (MAJOR RELEASE):
+					Rearranged the sensor initialization code in initSensors() to allow setting whether
+						these sensors are available or not on the robot.
+
+					Added definintions in the header files to enable/disable the various sensors.
+
+					Added the 'name' field to the Servo, ServoMotor, and Motor structs.
+
+					Split the readIMU() routine into three additional routines - readLSM303DLHC(),
+						readL3GD20Gyro(), and readBMP180() because each of these sensors can be purchased
+						from Adafruit separately.
+
+					Split the displayIMUData() into three separate display routines for the same reason.
+
+					Added separate structs for each sensor: bmp180Data, l3gd20Data, and lsm303dlhcData
+
+					Changed the readIMU() and displayIMUData() routines to call the respective sensor
+						reading and display routines.
+					-------------------------------------------------------------------------------
+
 	Dependencies:	Adafruit libraries:
 						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
 
@@ -56,7 +77,7 @@
 						Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LSM303 library)
 
 					Other libraries:
-						RTClib for the DS1307 (Adafruit version),
+						RTClib for the DS1307 (Adafruit's version)
 
 	Comments:		Credit is given, where applicable, for code I did not originate.
 */
@@ -157,6 +178,7 @@ Servo gripLift, gripWrist, gripGrab, pan, tilt;
 
 ServoMotor leftMotorM1 = {
 	SERVO_MOTOR_LEFT_PIN,
+	SERVO_MOTOR_LEFT_NAME,
 	SERVO_MOTOR_LEFT_OFFSET,
 	SERVO_MOTOR_LEFT_DIRECTION,
 	SERVO_MOTOR_LEFT_NEUTRAL,
@@ -168,6 +190,7 @@ ServoMotor leftMotorM1 = {
 
 ServoMotor rightMotorM2 = {
 	SERVO_MOTOR_RIGHT_PIN,
+	SERVO_MOTOR_RIGHT_NAME,
 	SERVO_MOTOR_RIGHT_OFFSET,
 	SERVO_MOTOR_RIGHT_DIRECTION,
 	SERVO_MOTOR_RIGHT_NEUTRAL,
@@ -323,8 +346,8 @@ void wait (uint8_t nrSeconds) {
 /************************************************************/
 
 void displayAreaScanReadings (void) {
-	uint8_t index = 0;
-	AreaScanReading reading;
+	uint8_t index;
+	AreaScanReading currentReading;
 
 	lastRoutine = String(F("displayAreaScanReadings"));
 
@@ -332,26 +355,26 @@ void displayAreaScanReadings (void) {
 	console.println();
 
 	for (index = 0; index < MAX_NUMBER_AREA_READINGS; index++) {
-		reading = areaScan[index];
+		currentReading = areaScan[index];
 
 		console.print(F("Index: "));
 		console.print(index);
 		console.print(F(", Position: "));
-		console.print(reading.positionDeg);
+		console.print(currentReading.positionDeg);
 		console.print(F(" degrees, PING: "));
-		console.print(reading.ping);
+		console.print(currentReading.ping);
 		console.print(F(" cm, IR: "));
-		console.print(reading.ir);
+		console.print(currentReading.ir);
 		console.println(F(" cm."));
 
 		if (HAVE_COLOR_SENSOR) {
 			console.println();
-			displayColorSensorData(&reading.color);
+			displayColorSensorData(&currentReading.color);
 		}
 
 		if (HAVE_HEAT_SENSOR) {
 			console.println();
-			displayHeatSensorData(&reading.heat);
+			displayHeatSensorData(&currentReading.heat);
 		}
 
 		console.println();
@@ -409,50 +432,78 @@ void displayHeatSensorData (HeatSensor *heatData) {
 }
 
 /*
+	Display the LSM303DLHC Accelerometer/Magnetometer (Compass) data
+*/
+void displayAccelCompassData (lsm303dlhcData *acData) {
+
+	//	LMS303DLHC Accelerometer readings
+	console.println(F("Accelerometer Readings: X = "));
+	console.print(acData->accelX);
+	console.print(F(", Y = "));
+	console.print(acData->accelY);
+	console.print(F(", Z = "));
+	console.println(acData->accelZ);
+	console.println();
+
+	//	LMS303DLHC Magnetometer (Compass) readings
+	console.println(F("Magnetometer (Compass) Readings: X = "));
+	console.print(acData->compassX);
+	console.print(F(", Y = "));
+	console.print(acData->compassY);
+	console.print(F(", Z = "));
+	console.println(acData->compassZ);
+	console.println();
+}
+
+/*
+	Display the L3GD20 Gyroscope readings
+*/
+void displayGyroData (l3gd20Data *gyroData) {
+	console.println(F("Gyroscope Readings: X = "));
+	console.print(gyroData->X);
+	console.print(F(", Y = "));
+	console.print(gyroData->Y);
+	console.print(F(", Z = "));
+	console.println(gyroData->Z);
+	console.println();
+}
+
+/*
+	Display the BMP180 Temperature / Pressure Data
+*/
+void displayTemperatureData (bmp180Data *tempData) {
+	if (tempData->temperatureValid) {
+		console.print(F("Room Temperature = "));
+		console.print(tempData->fahrenheit);
+		console.print(F(" F, "));
+		console.print(tempData->celsius);
+		console.println(F(" C."));
+		console.println();
+	} else {
+		console.println(F("Temperature data is not valid."));
+	}
+}
+
+/*
 	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], Gyroscope,
 		and Orientation (if valid)
 */
 void displayIMUData (InertialMeasurementUnit *imuData) {
 	sensors_vec_t orientation = imuData->orientation;
-	float celsius;
+	lsm303dlhcData accelCompassData = imuData->accelCompassData;
+	bmp180Data tempData = imuData->tempData;
+	l3gd20Data gyroData = imuData->gyroData;
 
 	//	LMS303DLHC Accelerometer readings
-	console.println(F("Accelerometer Readings: X = "));
-	console.print(imuData->accelX);
-	console.print(F(", Y = "));
-	console.print(imuData->accelY);
-	console.print(F(", Z = "));
-	console.println(imuData->accelZ);
-	console.println();
+	displayAccelCompassData(&accelCompassData);
 
-	//	LMS303DLHC Magnetometer (Compass) readings
-	console.println(F("Magnetometer (Compass) Readings: X = "));
-	console.print(imuData->compassX);
-	console.print(F(", Y = "));
-	console.print(imuData->compassY);
-	console.print(F(", Z = "));
-	console.println(imuData->compassZ);
-	console.println();
+	//	L3GD20 Gyroscope readings
+	displayGyroData(&gyroData);
 
-	//	L3DG20 Gyroscope readings
-	console.println(F("Gyroscope Readings: Gyro: X = "));
-	console.print(imuData->gyroX);
-	console.print(F(", Y = "));
-	console.print(imuData->gyroY);
-	console.print(F(", Z = "));
-	console.println(imuData->gyroZ);
-	console.println();
+	//	BMP180 Temperater and Pressure readings
+	displayTemperatureData(&tempData);
 
-	//	BMP180 Temperature readings
-	if (imuData->temperatureValid) {
-		console.print(F("Room Temperature = "));
-		console.print(imuData->fahrenheit);
-		console.print(F(" F, "));
-		console.print(imuData->celsius);
-		console.println(F(" C."));
-		console.println();
-	}
-
+	//	Orientation (Pitch and Roll) data
 	if (imuData->pitchRollValid || imuData->headingValid) {
 		console.println(F("Orientation Readings:"));
 	}
@@ -550,38 +601,71 @@ HeatSensor readHeatSensor (void) {
 }
 
 /*
+	Read the BMP180 Temperature / Pressure sensor
+*/
+bmp180Data readBMP180 (void) {
+	bmp180Data tempData;
+	sensors_event_t tempEvent;
+
+	//	Get temperature and pressure data
+	temperature.getEvent(&tempEvent);
+	tempData.temperatureValid = tempEvent.pressure;
+
+	if (tempData.temperatureValid) {
+		temperature.getTemperature(&tempData.celsius);
+		tempData.fahrenheit = toFahrenheit(tempData.celsius);
+	}
+}
+
+/*
+	Read the L3GD20 Gyroscope (also part of the 10DOF IMU)
+*/
+l3gd20Data readL3GD20Gyro (void) {
+	l3gd20Data gyroData;
+
+	gyroscope.read();
+
+	gyroData.X = (int)gyroscope.data.x;
+	gyroData.Y = (int)gyroscope.data.y;
+	gyroData.Z = (int)gyroscope.data.z;
+
+	return gyroData;
+}
+
+/*
+	Read the LSM303DLHC Accelerometer/Magnetometer (also part of the 10DOF IMU)
+*/
+lsm303dlhcData readLSM303DLHC (void) {
+	lsm303dlhcData acData;
+
+	//	Get accelerometer readings
+//	console.println(F("Getting Accelerometer Readings.."));
+	accelerometer.getEvent(&acData.accelEvent);
+ 
+	acData.accelX = acData.accelEvent.acceleration.x;
+	acData.accelY = acData.accelEvent.acceleration.y;
+	acData.accelZ = acData.accelEvent.acceleration.z;
+
+	//	Get compass readings
+//	console.println(F("Getting Magnetometer (Compass) Readings.."));
+	compass.getEvent(&acData.compassEvent);
+
+	acData.compassX = acData.compassEvent.magnetic.x;
+	acData.compassY = acData.compassEvent.magnetic.y;
+	acData.compassZ = acData.compassEvent.magnetic.z;
+
+	return acData;
+}
+
+/*
 	Read the 10DOF Inertial Measurement Unit (IMU)
 */
 InertialMeasurementUnit readIMU (void) {
 	InertialMeasurementUnit imuData;
 
-	accelerometer.getEvent(&imuData.accelEvent);
- 
-	imuData.accelX = imuData.accelEvent.acceleration.x;
-	imuData.accelY = imuData.accelEvent.acceleration.y;
-	imuData.accelZ = imuData.accelEvent.acceleration.z;
-
-	/*
-		Get compass readings
-	*/
-//	console.println(F("Getting Magnetometer (Compass) Readings.."));
-
-	compass.getEvent(&imuData.compassEvent);
-
-	imuData.compassX = imuData.compassEvent.magnetic.x;
-	imuData.compassY = imuData.compassEvent.magnetic.y;
-	imuData.compassZ = imuData.compassEvent.magnetic.z;
-
-	/*
-		Get gyro readings
-	*/
-//	console.println(F("Getting Gyroscope Readings.."));
-
-	gyroscope.read();
-
-	imuData.gyroX = (int)gyroscope.data.x;
-	imuData.gyroY = (int)gyroscope.data.y;
-	imuData.gyroZ = (int)gyroscope.data.z;
+	imuData.accelCompassData = readLSM303DLHC();
+	imuData.gyroData = readL3GD20Gyro();
+	imuData.tempData = readBMP180();
 
 //	console.println(F("Getting Orientation readings.."));
 
@@ -590,19 +674,10 @@ InertialMeasurementUnit readIMU (void) {
 	*/
 
 	//	Calculate pitch and roll from the raw accelerometer data
-	imuData.pitchRollValid = imu.accelGetOrientation(&imuData.accelEvent, &imuData.orientation);
+	imuData.pitchRollValid = imu.accelGetOrientation(&imuData.accelCompassData.accelEvent, &imuData.orientation);
 
-	//	Calculate the heading using the magnetometer (compass)
-	imuData.headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &imuData.compassEvent, &imuData.orientation);
-
-	//	Get temperature and pressure data
-	temperature.getEvent(&imuData.tempEvent);
-	imuData.temperatureValid = imuData.tempEvent.pressure;
-
-	if (imuData.temperatureValid) {
-		temperature.getTemperature(&imuData.celsius);
-		imuData.fahrenheit = toFahrenheit(imuData.celsius);
-	}
+	//	Calculate the heading using the raw magnetometer (compass)
+	imuData.headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &imuData.accelCompassData.compassEvent, &imuData.orientation);
 
 	return imuData;
 }
@@ -1071,7 +1146,7 @@ uint16_t initSensors (void) {
 	console.println(F("Initializing Sensors.."));
 
 	//	Initialize the 10DOF Inertial Measurement Unit (Adafruit)
-	if (HAVE_10DOF_IMU) {
+	if (HAVE_10DOF_IMU || HAVE_LSM303DLHC_ACCEL) {
 		//	Initialize the accelerometer
 		console.println(F("     LSM303DLHC Accelerometer.."));
 
@@ -1087,49 +1162,53 @@ uint16_t initSensors (void) {
 				/*	There was a problem detecting the LSM303DLHC ... check your connections */
 				errorStatus = 602;
 				processError(errorStatus, F("Ooops, no LSM303DLHC detected ... Check your wiring!"));
-			} else {
-				console.println(F("     L3GD20 Gyroscope.."));
-
-				//	Initialize and warn if we couldn't detect the gyroscope chip
-				if (! gyroscope.begin(gyroscope.L3DS20_RANGE_250DPS)) {
-					errorStatus = 603;
-					processError(errorStatus, F("Oops ... unable to initialize the L3GD20. Check your wiring!"));
-				} else {
-					console.println(F("     10 DOF Inertial Measurement Unit.."));
-
-					imu.begin();
-				}
 			}
 		}
 	}
 
-	if (errorStatus == 0) {
-		//	Initialize the TCS3725 RGB Color sensor (Adafruit)
-		if (HAVE_COLOR_SENSOR) {
-			if (! rgb.begin()) {
-				errorStatus = 604;
-				processError(errorStatus, F("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C Address!"));
-			}
+	if ((errorStatus == 0) && (HAVE_10DOF_IMU || HAVE_L3GD20_GYRO)) {
+		console.println(F("     L3GD20 Gyroscope.."));
+
+		//	Initialize and warn if we couldn't detect the gyroscope chip
+		if (! gyroscope.begin(gyroscope.L3DS20_RANGE_250DPS)) {
+			errorStatus = 603;
+			processError(errorStatus, F("Oops ... unable to initialize the L3GD20. Check your wiring!"));
 		}
+	}
 
-		if (errorStatus == 0) {
-			if (HAVE_HEAT_SENSOR) {	
-				//	Initialize the TMP006 heat sensor
-				if (! heat.begin()) {
-					errorStatus = 605;
-					processError(errorStatus, F("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C Address!"));
-				}
-			}
+	if ((errorStatus == 0) && (HAVE_10DOF_IMU || HAVE_BMP180_TEMP)) {
 
-			if (errorStatus == 0) {
-				console.println(F("     DS1307 Real Time Clock.."));
+	}
 
-				//	Check to be sure the RTC is running
-//				if (! clock.isrunning()) {
-//					errorStatus = 606;
-//					processError(errorStatus, F("The Real Time Clock is NOT running!"));
-//				}
-			}
+	if ((errorStatus == 0) && HAVE_10DOF_IMU) {
+		console.println(F("     10 DOF Inertial Measurement Unit.."));
+
+		imu.begin();
+	}
+
+	if ((errorStatus == 0) && (HAVE_COLOR_SENSOR)) {
+		//	Initialize the TCS3725 RGB Color sensor (Adafruit)
+		if (! rgb.begin()) {
+			errorStatus = 604;
+			processError(errorStatus, F("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C Address!"));
+		}
+	}
+
+	if ((errorStatus == 0) && (HAVE_HEAT_SENSOR)) {
+		//	Initialize the TMP006 heat sensor
+		if (! heat.begin()) {
+			errorStatus = 605;
+			processError(errorStatus, F("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C Address!"));
+		}
+	}
+
+	if ((errorStatus == 0) && (HAVE_DS1307_RTC)) {
+		console.println(F("     DS1307 Real Time Clock.."));
+
+		//	Check to be sure the RTC is running
+		if (! clock.isrunning()) {
+			errorStatus = 606;
+			processError(errorStatus, F("The Real Time Clock is NOT running!"));
 		}
 	}
 
@@ -1143,6 +1222,7 @@ void initServos (Servo *lift, Servo *wrist, Servo *grab, Servo *pan, Servo *tilt
 	lastRoutine = String(F("initServos"));
 
 	lift->pin = SERVO_GRIP_LIFT_PIN;
+	lift->name = SERVO_GRIP_LIFT_NAME;
 	lift->offset = SERVO_GRIP_LIFT_OFFSET;
 	lift->homePos = SERVO_GRIP_LIFT_HOME;
 	lift->msPulse = 0;
@@ -1153,6 +1233,7 @@ void initServos (Servo *lift, Servo *wrist, Servo *grab, Servo *pan, Servo *tilt
 	lift->error = 0;
 
 	wrist->pin = SERVO_GRIP_WRIST_PIN;
+	wrist->name = SERVO_GRIP_WRIST_NAME;
 	wrist->offset = SERVO_GRIP_WRIST_OFFSET;
 	wrist->homePos = SERVO_GRIP_WRIST_HOME;
 	wrist->msPulse = 0;
@@ -1163,6 +1244,7 @@ void initServos (Servo *lift, Servo *wrist, Servo *grab, Servo *pan, Servo *tilt
 	wrist->error = 0;
 
 	grab->pin = SERVO_GRIP_GRAB_PIN;
+	grab->name = SERVO_GRIP_GRAB_NAME;
 	grab->offset = SERVO_GRIP_GRAB_OFFSET;
 	grab->homePos = SERVO_GRIP_GRAB_HOME;
 	grab->msPulse = 0;
@@ -1173,6 +1255,7 @@ void initServos (Servo *lift, Servo *wrist, Servo *grab, Servo *pan, Servo *tilt
 	grab->error = 0;
 
 	pan->pin = SERVO_PAN_PIN;
+	pan->name = SERVO_PAN_NAME;
 	pan->offset = SERVO_PAN_OFFSET;
 	pan->homePos = SERVO_PAN_HOME;
 	pan->msPulse = 0;
@@ -1183,6 +1266,7 @@ void initServos (Servo *lift, Servo *wrist, Servo *grab, Servo *pan, Servo *tilt
 	pan->error = 0;
 
 	tilt->pin = SERVO_TILT_PIN;
+	tilt->name = SERVO_TILT_NAME;
 	tilt->offset = SERVO_TILT_OFFSET;
 	tilt->homePos = SERVO_TILT_HOME;
 	tilt->msPulse = 0;
@@ -1219,7 +1303,7 @@ void setup (void) {
 	//	Initialize the SSC-32 servo controller port
 	ssc32.begin(115200);
 
-	//	Initialize the XBee Mesh Wireless port
+	//	Initialize the XBee (ZigBee) Mesh Wireless port
 	xbee.begin(115200);
 
 	console.println(F("Initializing Digital Pins.."));
@@ -1328,7 +1412,7 @@ void loop (void) {
 	DateTime now = clock.now();
 
 	//	Display related variables
-	boolean amTime, hasMoved = false;
+	boolean amTime;
 	uint8_t displayNr = 0, count = 0, readingNr = 0;
 	uint8_t areaClosestReadingPING = 0, areaFarthestReadingPING = 0;
 	uint8_t areaClosestReadingIR = 0, areaFarthestReadingIR = 0;
@@ -1350,7 +1434,9 @@ void loop (void) {
 	// Pulse the heartbeat LED
 	pulseDigital(HEARTBEAT_LED, 500);
 
-	currentMinute = now.minute();
+	if (HAVE_DS1307_RTC) {
+		currentMinute = now.minute();
+	}
 
 	/*
 		This is code that only runs one time, to initialize
