@@ -366,6 +366,17 @@ void displayAreaScanReadings (DistanceObject *distObj) {
 		console.print(F(" cm, IR: "));
 		console.print(currentReading.ir);
 		console.println(F(" cm."));
+		console.println();
+
+		console.print(F("Closest object: PING: "));
+		console.print(distObj->closestPING);
+		console.print(F(", IR: "));
+		console.println(distObj->closestIR);
+
+		console.print(F("Farthest object: PING: "));
+		console.print(distObj->farthestPING);
+		console.print(F(", IR: "));
+		console.println(distObj->farthestIR);
 
 		if (HAVE_COLOR_SENSOR) {
 			console.println();
