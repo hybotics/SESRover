@@ -1,28 +1,10 @@
 /*
-	SES Rover: Main code
-	Copyright (C) 2013 Dale A. Weber <hybotics.pdx@gmail.com>
+	Program:      	SES Rover, Motor_Servo_Test.ino - Motor experimentation and test sketch
+	Date:         	20-Apr-2014
+	Version:      	0.2.1 ALPHA
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
-	Program:		SES Rover, Main navigation and reactive behaviors sketch
-	Date:			06-Mar-2014
-	Version:		0.1.0 ALPHA Lynxmotion's BotBoarduino and SSC-32
-
-	Platform:		Lynxmotion's BotBoarduino (Arduino),
-						with Lynxmotion's SSC-32 Servo Controller,
+	Platform:		Arduino Mega 2560 R3,
+						Lynxmotion's SSC-32 Servo Controller,
 						and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
 
 	Purpose:		To experiment with various sensor configurations, tracking objects (heat or
@@ -30,97 +12,103 @@
 						test code that will later be used on W.A.L.T.E.R. 2.0.
 
 					-------------------------------------------------------------------------------
-					v0.0.1 ALPHA 17-Feb-2014:
-					Initial build - basic two wheeled chassis, with a Lynxmotion
-						BotBoarduino (Arduino), a Lynxmotion SSC-32 Servo
-						Controller, and two Lynxmotion CR servos for locomotion.
-
-					This build was inspired by Lynxmotion's Two Wheeled Servo
-						based rover.
+					v0.0.1 ALPHA 19-Feb-2014:
+					Initial build from W.A.L.T.E.R. 2.0 code
 					-------------------------------------------------------------------------------
-					v0.0.2 ALPHA 19-Feb-2014:
-					Added Pan/Tilt sensor platform, with a Parallax PING ultrasonic
-						range sensor, and a Sharp GP2Y0A21YK0F IR range sensor.
+					v0.0.2 ALPHA 20-Feb-2014:
+					Adding routines to scan the area and move the robot.
 
-					Tweaked all servo home positions to be right, by adusting
-						the servo offset values.
+					Rewrote the ServoMotor struct to use naming like the Servo struct.
 					-------------------------------------------------------------------------------
-					v0.0.3 ALPHA 19-Feb-2014:
+					v0.0.3 ALPHA 17-Apr-2014:
+					Switched processor to the Arduino Mega 2560 R3 board, because there is not enough
+						memory on a BotBoarduino (Arduino Duemilanove) for what I need to do.
 
+					Making adjustments to take advantage of the extra hardware serial ports.
 					-------------------------------------------------------------------------------
-					v0.0.4 ALPHA 04-Mar-2014:
-					I put all the print strings in F(), like F("string"), and this may
-						have saved me enough dynamic memory that I can
-						continue developing on this platform.
-					--------------------------------------------------------------------------------
-					v0.0.9 ALPHA 05-Mar-2014:
-					Added more error checking in moveServoPw() and moveServoDegrees().
+					v0.1.0 ALPHA 18-Apr-2014 (MAJOR RELEASE):
+					More error checking in the setup() routine.
 
-					I think I fixed problem where servoMoveDegrees() was using the wrong servo pulse
-						width. More testing is needed to be sure.
+					Added some error checking to scanArea().
 
-					Extra bump of version number because yesterday's commit was a major change.
+					Added the displayAreaScanReadings() routine to display all the readings from the
+						areaScan array.
 
-					Added license notice here and to header file.
-					--------------------------------------------------------------------------------
-					v0.1.0 ALPHA 06-Mar-2014:
-					Finally got the scanArea() range right! It now scans up to a full 180 degree range.
-					--------------------------------------------------------------------------------
+					Moved the code to read the color and heat sensors into separate routines.
+
+					Added boolean switch settings HAVE_10DOF_IMU, HAVE_COLOR_SENSOR and HAVE_HEAT_SENSOR
+						to the header file to allow turning this sensor code on and off easily.
+
+					Added the displayIMUData() and readIMU() for the Adafruit 10DOF IMU
+
+					Added conditional initialization for all optional sensors.
+
+					Added the readGP2Y0A21YK0F() routine to read the Sharp GP2Y0A21YK0F IR sensor
+
+					Changed the name of the readIR() routine to readGP2D12().
+
+					Changed the name of the readPING() routine to readParallaxPING().
+					-------------------------------------------------------------------------------
+					v0.2.0 19-Apr-2014 (MAJOR RELEASE):
+					Rearranged the sensor initialization code in initSensors() to allow setting whether
+						these sensors are available or not on the robot.
+
+					Added definintions in the header files to enable/disable the various sensors.
+
+					Added the 'name' field to the Servo, ServoMotor, and Motor structs.
+
+					Split the readIMU() routine into three additional routines - readLSM303DLHC(),
+						readL3GD20Gyro(), and readBMP180() because each of these sensors can be purchased
+						from Adafruit separately.
+
+					Split the displayIMUData() into three separate display routines for the same reason.
+
+					Added separate structs for each sensor: bmp180Data, l3gd20Data, and lsm303dlhcData
+
+					Changed the readIMU() and displayIMUData() routines to call the respective sensor
+						reading and display routines.
+
+					Created the findDistanceObjects() routine and DistanceObject struct.
+
+					Added display of distance objects in displayAreaScanReadings().
+					-------------------------------------------------------------------------------
+					v0.2.1 20-Apr-2014:
+					Fixed a bug in the scanArea() routine. The index variable needed to be an int,
+						because it can be negative. It was a uint16_6. The scanner works now!
+					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
-						Adafruit_Sensor, Adafruit_TCS34725, Adafruit_TMP006, RTClib (Adafruit version)
+						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
 
 					Hybotics libraries:
-						None
+						Hybotics_10DOF_Unified (forked from the Adafruit_10DOF library)
+						Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LSM303 library)
+
+					Other libraries:
+						RTClib for the DS1307 (Adafruit's version)
 
 	Comments:		Credit is given, where applicable, for code I did not originate.
-*/
-
-/*
-	Required Arduino System
 */
 #include <Wire.h>
 #include <SoftwareSerial.h>
 
-/*
-	Additional sensors
-*/
 #include <Adafruit_Sensor.h>
-#include <Adafruit_TCS34725.h>
-#include <Adafruit_TMP006.h>
-
-/*
-	Additional libraries
-*/
+#include <Adafruit_L3GD20.h>
+#include <Hybotics_LSM303DLHC_Unified.h>
+#include <Hybotics_10DOF_Unified.h>
+#include <Hybotics_BMP180_Unified.h>
 #include <RTClib.h>
 
 /*
-	Local stuff
+	Additional sensors
 */
-#include "Main.h"
-#include "Pitches.h"
-
-/************************************************************/
-/*	Global variables										*/
-/************************************************************/
+#include <Adafruit_TMP006.h>
+#include <Adafruit_TCS34725.h>
 
 /*
-	Initialize our sensors
-
-	We have:
-		These are from Adafruit:
-			http://www.adafruit.com/products/1334 (TCS34725 RGB Color sensor)
-			http://www.adafruit.com/products/1296 (TMP006 Heat sensor)
-			http://www.adafruit.com/products/264 (DS1307 Realtime Clock)
-
-		From other sources:
-			GP2Y0A21YK0F IR Ranging sensors (1)
-			PING Ultrasonic Ranging sensors (1)
+  Local includes
 */
-
-Adafruit_TCS34725 rgb = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
-Adafruit_TMP006 heat = Adafruit_TMP006();
-RTC_DS1307 clock;
+#include "Motor_Servo_Test.h"
 
 /************************************************************/
 /*	Initialize global variables								*/
@@ -130,6 +118,9 @@ RTC_DS1307 clock;
 	These variables control the display of various information
 		on the seven segment and matrix displays.
 */
+
+//	SSC-32 command variable
+String ssc32Command = "";
 
 //	Date display
 boolean displayDate = true;
@@ -151,169 +142,87 @@ uint8_t lastMinute = -1;
 long minuteCount = 0;						//	Count the time, in minutes, since we were last restarted
 
 //	Enable run once only loop code to run
-boolean firstLoop = true;
+bool firstLoop = true;
 
-//	Error control
-uint16_t errorStatus;
-String errorMsg;
+//	True when the robot has not moved after an area scan
+bool hasNotMoved = true;
+
+//	This will always have the name of the last routine executed before an error
+String lastRoutine;
+
+/************************************************************/
+/*	Initialize Objects										*/
+/************************************************************/
+
+Adafruit_L3GD20 gyroscope;
+Hybotics_BMP180_Unified temperature = Hybotics_BMP180_Unified(10001);
+Hybotics_LSM303DLHC_Accel_Unified accelerometer = Hybotics_LSM303DLHC_Accel_Unified(10002);
+Hybotics_LSM303DLHC_Mag_Unified compass = Hybotics_LSM303DLHC_Mag_Unified(10003);
+Hybotics_10DOF_Unified imu = Hybotics_10DOF_Unified();
+
+Adafruit_TCS34725 rgb = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+Adafruit_TMP006 heat = Adafruit_TMP006();
+
+RTC_DS1307 clock;
 
 /*
 	Setup all our serial devices
 */
 
-//	Hardware Serial: Console and debug (replaces Serial.* routines)
+//	Hardware Serial0: Console and debug (replaces Serial.* routines)
 SoftwareSerial console(SERIAL_CONSOLE_RX_PIN, SERIAL_CONSOLE_TX_PIN);
 
-//	Software Serial: SSC-32 Controller
+//	Hardware Serial1: Lynxmotion SSC-32 Servo Controller
 SoftwareSerial ssc32(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
 
-//	Software Serial: XBee Mesh Wireless
+//	Hardware Serial2: XBee Mesh Wireless
 SoftwareSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
 
+//	Hardware Serial3: RESERVED
+SoftwareSerial reserved(SERIAL_RESERVED_RX_PIN, SERIAL_RESERVED_TX_PIN);
+
 /************************************************************/
-/*	Initialize Servos										*/
+/*	Initialize Servos and Servo Motors						*/
 /************************************************************/
 
 Servo gripLift, gripWrist, gripGrab, pan, tilt;
 
-/************************************************************/
-/*	Initialize Sensors										*/
-/************************************************************/
-
-//	Total number of area readings taken, or -1 if data is not valid
-int nrAreaScanReadings;
-
-//  These are where the range sensor readings are stored.
-int ping[MAX_NUMBER_PING];
-float ir[MAX_NUMBER_IR];
-
-boolean areaScanValid = false, hasMoved = false;
-
-//	Readings for full area scans
-AreaScanReading areaScan[MAX_NUMBER_AREA_READINGS];
-
-//	The TCS34725 RGB Color Sensor
-ColorSensor colorData = {
-	0,
-	0,
-	0,
+ServoMotor leftMotorM1 = {
+	SERVO_MOTOR_LEFT_PIN,
+	SERVO_MOTOR_LEFT_NAME,
+	SERVO_MOTOR_LEFT_OFFSET,
+	SERVO_MOTOR_LEFT_DIRECTION,
+	SERVO_MOTOR_LEFT_NEUTRAL,
+	SERVO_MOTOR_LEFT_MIN,
+	SERVO_MOTOR_LEFT_MAX,
 	0,
 	0
 };
 
-//	The TMP006 Heat sensor
-HeatSensor heatData = {
-	0.0,
-	0.0
+ServoMotor rightMotorM2 = {
+	SERVO_MOTOR_RIGHT_PIN,
+	SERVO_MOTOR_RIGHT_NAME,
+	SERVO_MOTOR_RIGHT_OFFSET,
+	SERVO_MOTOR_RIGHT_DIRECTION,
+	SERVO_MOTOR_RIGHT_NEUTRAL,
+	SERVO_MOTOR_RIGHT_MIN,
+	SERVO_MOTOR_RIGHT_MAX,
+	0,
+	0
 };
 
-/************************************************************/
-/*	Bitmaps for the matrix 8x8 display drawBitMap() routine	*/
-/************************************************************/
+//	Total number of area readings taken, or -1 if data is not valid
+int nrAreaReadings;
 
-static const uint8_t PROGMEM
-	hpa_bmp[] = {
-		B10001110,
-		B10001001,
-		B11101110,
-		B10101000,
-		B00000100,
-		B00001010,
-		B00011111,
-		B00010001
-	},
+//	PING Ultrasonic range sensor readings
+int ping[MAX_NUMBER_PING];
 
-	c_bmp[] = {
-		B01110000,
-		B10001000,
-		B10000000,
-		B10001000,
-		B01110000,
-		B00000000,
-		B00000000,
-		B00000000
-	},
+//	Sharp GP2Y0A21YK0F IR range sensor readings
+float ir[MAX_NUMBER_IR];
 
-	f_bmp[] = {
-		B11111000,
-		B10000000,
-		B11100000,
-		B10000000,
-		B10000000,
-		B00000000,
-		B00000000,
-		B00000000
-	},
-
-	m_bmp[] = {
-		B00000000,
-		B00000000,
-		B00000000,
-		B00000000,
-		B11101110,
-		B10111010,
-		B10010010,
-		B10000010
-	},
-
-	date_bmp[] = {
-		B10110110,
-		B01001001,
-		B01001001,
-		B00000100,
-		B00000100,
-		B01111100,
-		B10000100,
-		B01111100
-	},
-
-	year_bmp[] = {
-		B00000000,
-		B10001000,
-		B10001000,
-		B01110000,
-		B00101011,
-		B00101100,
-		B00101000,
-		B00000000
-	},
-
-	am_bmp[] = {
-		B01110000,
-		B10001010,
-		B10001010,
-		B01110100,
-		B00110110,
-		B01001001,
-		B01001001,
-		B01001001
-	},
-
-	pm_bmp[] = {
-		B01111100,
-		B10000010,
-		B11111100,
-		B10000000,
-		B10110110,
-		B01001001,
-		B01001001,
-		B01001001
-	},
-
-	allon_bmp[] = {
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111
-	};
-
-/*
-	Code starts here
-*/
+//	Area scan readings
+AreaScanReading areaScan[MAX_NUMBER_AREA_READINGS];
+bool areaScanValid = false;
 
 /************************************************************/
 /*	Utility routines										*/
@@ -325,6 +234,8 @@ static const uint8_t PROGMEM
 String leftZeroPadString (String st, uint8_t nrPlaces) {
   uint8_t i, len;
   String newStr = st;
+
+  lastRoutine = String(F("leftZeroPadString"));
   
   if (newStr.length() < nrPlaces) {
     len = st.length();
@@ -348,6 +259,8 @@ long microsecondsToInches (long microseconds) {
 			and return, so we divide by 2 to get the distance of the obstacle.
 		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
 	*/
+
+	lastRoutine = String(F("microsecondsToInches"));
 	
 	return microseconds / 74 / 2;
 }
@@ -363,6 +276,8 @@ long microsecondsToCentimeters (long microseconds) {
 			object we take half of the distance travelled.
 	*/
 
+	lastRoutine = String(F("microsecondsToCentimeters"));
+
 	return microseconds / 29 / 2;
 }
 
@@ -370,6 +285,8 @@ long microsecondsToCentimeters (long microseconds) {
     Pulses a digital pin for a duration in ms
 */
 void pulseDigital(int pin, int duration) {
+	lastRoutine = String(F("pulseDigital"));
+
 	digitalWrite(pin, HIGH);			// Turn the ON by making the voltage HIGH (5V)
 	delay(duration);					// Wait for duration ms
 	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
@@ -380,6 +297,8 @@ void pulseDigital(int pin, int duration) {
 	Convert a temperature in Celsius to Fahrenheit
 */
 float toFahrenheit (float celsius) {
+	lastRoutine = String(F("toFahrenheit"));
+
 	return (celsius * 1.8) + 32;
 }
 
@@ -389,6 +308,8 @@ float toFahrenheit (float celsius) {
 String trimTrailingZeros (String st) {
   uint8_t newStrLen = 0;
   String newStr = st;
+
+  lastRoutine = String(F("trimTrailingZeros"));
 
   newStrLen = newStr.length();
 
@@ -400,55 +321,265 @@ String trimTrailingZeros (String st) {
   return newStr;
 }
 
+/*
+    Process error conditions
+*/
+void processError (byte errCode, String errMsg) {
+	console.print(F("Error in routine '"));
+	console.print(lastRoutine);
+	console.print(F("', Code: "));
+	console.print(errCode);
+	console.print(F(", Message: "));
+	console.print(errMsg);
+	console.println(F("!"));
+}
+
+/*
+	Wait for a bit to allow time to read the Console Serial Monitor log
+*/
+void wait (uint8_t nrSeconds, String text = "") {
+	uint8_t count;
+
+	lastRoutine = String(F("wait"));
+
+	console.print(F("Waiting"));
+
+	if (text != "") {
+		console.print(F(" for "));
+		console.print(text);
+	}
+
+	for (count = 0; count < nrSeconds; count++) {
+		console.print(F("."));
+		delay(1000);
+	}
+
+	console.println();
+}
+
 /************************************************************/
 /*	Display routines										*/
 /************************************************************/
 
+void displayAreaScanReadings (DistanceObject *distObj) {
+	uint8_t index;
+	AreaScanReading currentReading;
+
+	lastRoutine = String(F("displayAreaScanReadings"));
+
+	console.println(F("AreaScan Readings:"));
+	console.println();
+
+	for (index = 0; index < MAX_NUMBER_AREA_READINGS; index++) {
+		currentReading = areaScan[index];
+
+		console.print(F("Index: "));
+		console.print(index);
+		console.print(F(", Position: "));
+		console.print(currentReading.positionDeg);
+		console.print(F(" degrees, PING: "));
+		console.print(currentReading.ping);
+		console.print(F(" cm, IR: "));
+		console.print(currentReading.ir);
+		console.println(F(" cm."));
+		console.println();
+
+		console.print(F("Closest object:"));
+		console.print(F("     PING: "));
+		console.print(distObj->closestPING);
+		console.print(F(", at position "));
+		console.print(distObj->closestPosPING);
+		console.println(F(" degrees."));
+
+		console.print(F("     IR: "));
+		console.print(distObj->closestIR);
+		console.print(F(", at position "));
+		console.print(distObj->closestPosIR);
+		console.println(F(" degrees."));
+
+		console.print(F("Farthest object:"));
+		console.print(F("     PING: "));
+		console.print(distObj->farthestPING);
+		console.print(F(", at position "));
+		console.print(distObj->farthestPosPING);
+		console.println(F(" degrees."));
+
+		console.print(F("     IR: "));
+		console.print(distObj->farthestIR);
+		console.print(F(", at position "));
+		console.print(distObj->farthestPosIR);
+		console.println(F(" degrees."));
+
+		if (HAVE_COLOR_SENSOR) {
+			console.println();
+			displayColorSensorData(&currentReading.color);
+		}
+
+		if (HAVE_HEAT_SENSOR) {
+			console.println();
+			displayHeatSensorData(&currentReading.heat);
+		}
+
+		console.println();
+	}
+}
+
 /*
 	Display the TCS34725 RGB color sensor readings
 */
-void displayColorSensorReadings (ColorSensor *colorData) {
+void displayColorSensorData (ColorSensor *colorData) {
+	lastRoutine = String(F("displayColorSensorData"));
+
+	console.println(F("Color Sensor Data:"));
+	console.println();
+
 	console.print(F("Color Temperature: "));
-	console.print(colorData->colorTemp, DEC);
+	console.print(colorData->colorTempC, DEC);
 	console.print(F(" K - Lux: "));
 	console.print(colorData->lux, DEC);
 	console.print(F(" - Red: "));
 	console.print(colorData->red, DEC);
-	console.print(F(", Green: "));
+	console.print(F(" Green: "));
 	console.print(colorData->green, DEC);
-	console.print(F(", Blue: "));
+	console.print(F(" Blue: "));
 	console.print(colorData->blue, DEC);
-	console.print(F(", C: "));
+	console.print(F(" C: "));
 	console.println(colorData->c, DEC);
-	console.println();
+	console.println(F("."));
 }
 
 /*
 	Display the TMP006 heat sensor readings
 */
-void displayHeatSensorReadings (HeatSensor *heatData) {
-	float objCelsius = heatData->objectTemp;
+void displayHeatSensorData (HeatSensor *heatData) {
+	lastRoutine = String(F("displayHeatSensorData"));
+
+	float objCelsius = heatData->objectTempC;
 	float objFahrenheit = toFahrenheit(objCelsius);
-	float dieCelsius = heatData->dieTemp;
+	float dieCelsius = heatData->dieTempC;
 	float dieFahrenheit = toFahrenheit(dieCelsius);
+
+	console.println(F("Heat Sensor Data:"));
+	console.println();
 
 	console.print(F("Object Temperature: "));
 	console.print(objFahrenheit);
 	console.print(F(" F, "));
 	console.print(objCelsius);
-	console.println(F(" C"));
+	console.println(F(" C."));
 	console.print(F("Die Temperature: "));
 	console.print(dieFahrenheit);
 	console.print(F(" F, "));
 	console.print(dieCelsius);
-	console.println(F(" C"));
+	console.println(F(" C."));
+}
+
+/*
+	Display the LSM303DLHC Accelerometer/Magnetometer (Compass) data
+*/
+void displayAccelCompassData (lsm303dlhcData *acData) {
+
+	//	LMS303DLHC Accelerometer readings
+	console.println(F("Accelerometer Readings: X = "));
+	console.print(acData->accelX);
+	console.print(F(", Y = "));
+	console.print(acData->accelY);
+	console.print(F(", Z = "));
+	console.println(acData->accelZ);
+	console.println();
+
+	//	LMS303DLHC Magnetometer (Compass) readings
+	console.println(F("Magnetometer (Compass) Readings: X = "));
+	console.print(acData->compassX);
+	console.print(F(", Y = "));
+	console.print(acData->compassY);
+	console.print(F(", Z = "));
+	console.println(acData->compassZ);
+	console.println();
+}
+
+/*
+	Display the L3GD20 Gyroscope readings
+*/
+void displayGyroData (l3gd20Data *gyroData) {
+	console.println(F("Gyroscope Readings: X = "));
+	console.print(gyroData->X);
+	console.print(F(", Y = "));
+	console.print(gyroData->Y);
+	console.print(F(", Z = "));
+	console.println(gyroData->Z);
+	console.println();
+}
+
+/*
+	Display the BMP180 Temperature / Pressure Data
+*/
+void displayTemperatureData (bmp180Data *tempData) {
+	if (tempData->temperatureValid) {
+		console.print(F("Room Temperature = "));
+		console.print(tempData->fahrenheit);
+		console.print(F(" F, "));
+		console.print(tempData->celsius);
+		console.println(F(" C."));
+		console.println();
+	} else {
+		console.println(F("Temperature data is not valid."));
+	}
+}
+
+/*
+	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], Gyroscope,
+		and Orientation (if valid)
+*/
+void displayIMUData (InertialMeasurementUnit *imuData) {
+	sensors_vec_t orientation = imuData->orientation;
+	lsm303dlhcData accelCompassData = imuData->accelCompassData;
+	bmp180Data tempData = imuData->tempData;
+	l3gd20Data gyroData = imuData->gyroData;
+
+	//	LMS303DLHC Accelerometer readings
+	displayAccelCompassData(&accelCompassData);
+
+	//	L3GD20 Gyroscope readings
+	displayGyroData(&gyroData);
+
+	//	BMP180 Temperater and Pressure readings
+	displayTemperatureData(&tempData);
+
+	//	Orientation (Pitch and Roll) data
+	if (imuData->pitchRollValid || imuData->headingValid) {
+		console.println(F("Orientation Readings:"));
+	}
+	
+	//	Orientation readings - Pitch, Roll, and Heading
+	if (imuData->pitchRollValid) {
+		console.print(F("Roll: "));
+		console.print(orientation.roll);
+		console.print(F("; "));
+		console.print(F("Pitch: "));
+		console.print(orientation.pitch);
+	}
+
+	if (imuData->headingValid) {
+		if (imuData->pitchRollValid) {
+			console.print(F("; "));
+		}
+
+		console.print(F("Heading: "));
+		console.print(orientation.heading);
+		console.println(F(" degrees."));
+	}
+
+	console.println();
 }
 
 /*
     Display the GP2Y0A21YK0F IR sensor readings (cm)
 */
 void displayIR (void) {
-	int sensorNr = 0;
+	uint8_t sensorNr = 0;
+
+	lastRoutine = String("displayIR");
   
 	console.println(F("IR Sensor readings:"));
 
@@ -469,17 +600,19 @@ void displayIR (void) {
 	Display the readings from the PING Ultrasonic sensors
 */
 void displayPING (void) {
-	int sensorNr = 0;
+	uint8_t sensorNr = 0;
+
+	lastRoutine = String(F("displayPING"));
   
-	console.println(F("PING Ultrasonic Sensor readings:"));
+	console.println("PING Ultrasonic Sensor readings:");
   
 	//	Display PING sensor readings (cm)
 	while (sensorNr < MAX_NUMBER_PING) {
-		console.print(F("Ping #"));
+		console.print("Ping #");
 		console.print(sensorNr + 1);
-		console.print(F(" range = "));
+		console.print(" range = ");
 		console.print(ping[sensorNr]);
-		console.println(F(" cm"));
+		console.println(" cm");
 
 		sensorNr += 1;
 	}
@@ -487,38 +620,183 @@ void displayPING (void) {
 	console.println();
 }
 
+/*
+	Display servo data
+*/
+void displayServo (Servo *servo) {
+	console.println("Servo '" + servo->descr + "':");
+
+	console.print(F("Pin #"));
+	console.print(servo->pin);
+	console.print(F(", Offset: "));
+	console.print(servo->offset);
+	console.print(F(", Home: "));
+	console.print(servo->homePos);
+	console.print(F(" uS, Pulse: "));
+	console.print(servo->msPulse);
+	console.println(F(" uS."));
+
+	console.print(F("Angle: "));
+	console.print(servo->angle);
+	console.print(F(" deg, Min Pulse: "));
+	console.print(servo->minPulse);
+	console.print(F(" uS, Max Pulse: "));
+	console.print(servo->maxPulse);
+	console.print(F(" uS, Max Degrees: "));
+	console.print(servo->maxDegrees);
+	console.print(F(" deg, Error: "));
+	console.print(servo->error);
+	console.println(F("."));
+
+	console.println();
+}
+
 /************************************************************/
 /*	Sensor reading routines									*/
 /************************************************************/
 
+ColorSensor readColorSensor (void) {
+	ColorSensor colorData;
+
+	rgb.getRawData(&colorData.red, &colorData.green, &colorData.blue, &colorData.c);
+	colorData.colorTempC = rgb.calculateColorTemperature(colorData.red, colorData.green, colorData.blue);
+	colorData.lux = rgb.calculateLux(colorData.red, colorData.green, colorData.blue);
+
+	return colorData;
+}
+
+HeatSensor readHeatSensor (void) {
+	HeatSensor heatData;
+
+	heatData.dieTempC = heat.readDieTempC();
+	heatData.objectTempC = heat.readObjTempC();
+
+	return heatData;
+}
+
+/*
+	Read the BMP180 Temperature / Pressure sensor
+*/
+bmp180Data readBMP180 (void) {
+	bmp180Data tempData;
+	sensors_event_t tempEvent;
+
+	//	Get temperature and pressure data
+	temperature.getEvent(&tempEvent);
+	tempData.temperatureValid = tempEvent.pressure;
+
+	if (tempData.temperatureValid) {
+		temperature.getTemperature(&tempData.celsius);
+		tempData.fahrenheit = toFahrenheit(tempData.celsius);
+	}
+}
+
+/*
+	Read the L3GD20 Gyroscope (also part of the 10DOF IMU)
+*/
+l3gd20Data readL3GD20Gyro (void) {
+	l3gd20Data gyroData;
+
+	gyroscope.read();
+
+	gyroData.X = (int)gyroscope.data.x;
+	gyroData.Y = (int)gyroscope.data.y;
+	gyroData.Z = (int)gyroscope.data.z;
+
+	return gyroData;
+}
+
+/*
+	Read the LSM303DLHC Accelerometer/Magnetometer (also part of the 10DOF IMU)
+*/
+lsm303dlhcData readLSM303DLHC (void) {
+	lsm303dlhcData acData;
+
+	//	Get accelerometer readings
+//	console.println(F("Getting Accelerometer Readings.."));
+	accelerometer.getEvent(&acData.accelEvent);
+ 
+	acData.accelX = acData.accelEvent.acceleration.x;
+	acData.accelY = acData.accelEvent.acceleration.y;
+	acData.accelZ = acData.accelEvent.acceleration.z;
+
+	//	Get compass readings
+//	console.println(F("Getting Magnetometer (Compass) Readings.."));
+	compass.getEvent(&acData.compassEvent);
+
+	acData.compassX = acData.compassEvent.magnetic.x;
+	acData.compassY = acData.compassEvent.magnetic.y;
+	acData.compassZ = acData.compassEvent.magnetic.z;
+
+	return acData;
+}
+
+/*
+	Read the 10DOF Inertial Measurement Unit (IMU)
+*/
+InertialMeasurementUnit readIMU (void) {
+	InertialMeasurementUnit imuData;
+
+	imuData.accelCompassData = readLSM303DLHC();
+	imuData.gyroData = readL3GD20Gyro();
+	imuData.tempData = readBMP180();
+
+//	console.println(F("Getting Orientation readings.."));
+
+	/*
+		Get pitch, roll, and heading information
+	*/
+
+	//	Calculate pitch and roll from the raw accelerometer data
+	imuData.pitchRollValid = imu.accelGetOrientation(&imuData.accelCompassData.accelEvent, &imuData.orientation);
+
+	//	Calculate the heading using the raw magnetometer (compass)
+	imuData.headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &imuData.accelCompassData.compassEvent, &imuData.orientation);
+
+	return imuData;
+}
+
+/*
+	Read distance in cm from a Sharp GP2Y0A21YK0F IR sensor
+*/
+float readSharpGP2Y0A21YK0F (byte sensorNr) {
+	byte pin = sensorNr + IR_PIN_BASE;
+
+	float volts = analogRead(pin) * 0.0048828125;
+	float distance = 65 * pow(volts, -1.10);
+
+	lastRoutine = String(F("readSharpGP2Y0A21YK0F"));
+
+	return distance;
+}
+
 /* 
-	Function to read a value from a GP2Y0A21YK0F infrared distance sensor and return a
+	Function to read a value from a GP2D12 infrared distance sensor and return a
 		distance value in centimeters.
 
 	This sensor should be used with a refresh rate of 36ms or greater.
 
 	Javier Valencia 2008
 
-	float readIR(byte pin)
+	float readGP2D12(byte pin)
 
 	It can return -1 if something has gone wrong.
 
 	TODO: Make several readings over a time period, and average them
 		for the final reading.
-
-	NOTE: This code is for the older Sharp GP2D12 IR sensor, and will no
-		doubt have to be adjusted to work correctly with the newer sensor.
 */
-float readIR (byte sensorNr) {
+float readSharpGP2D12 (byte sensorNr) {
 	byte pin = sensorNr + IR_PIN_BASE;
 	int tmp;
+
+	lastRoutine = String(F("readSharpGP2D12"));
 
 	tmp = analogRead(pin);
 
 	if (tmp < 3) {
-		return -1;                                  // Invalid value
+		return -1.0;								// Invalid value
 	} else {
-		return (6787.0 /((float)tmp - 3.0)) - 4.0;  // Distance in cm
+		return (6787.0 /((float)tmp - 3.0)) - 4.0;	// Distance in cm
 	}
 }
 
@@ -549,10 +827,12 @@ float readIR (byte sensorNr) {
 
 		Set units = true for cm, and false for inches
 */
-int readPING (byte sensorNr, boolean units=true) {
+int readParallaxPING (byte sensorNr, boolean units=true) {
 	byte pin = sensorNr + PING_PIN_BASE;
 	long duration;
 	int result;
+
+	lastRoutine = String(F("readParallaxPING"));
 
 	/*
 		The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
@@ -588,25 +868,57 @@ int readPING (byte sensorNr, boolean units=true) {
 }
 
 /********************************************************************/
-/*	Lynxmotion BotBoarduino specific routines						*/
-/********************************************************************/
-
-/********************************************************************/
 /*	Lynxmotion SSC-32 Servo Controller routines						*/
 /********************************************************************/
+
+DistanceObject findDistanceObjects () {
+	uint8_t readingNr;
+
+	DistanceObject distObj = {0, 0, 0, 0, 0, 0, 0, 0};
+
+	console.println(F("Finding the closest and farthest objects.."));
+
+	//	Find the closest and farthest objects
+	for (readingNr = 0; readingNr <= nrAreaReadings; readingNr++) {
+		//	Check for the closest object
+		if (areaScan[readingNr].ping < areaScan[distObj.closestPING].ping) {
+			distObj.closestPING = readingNr;
+			distObj.closestPosPING = areaScan[readingNr].positionDeg;
+		}
+
+		if (areaScan[readingNr].ir <=  areaScan[distObj.closestIR].ir) {
+			distObj.closestIR = readingNr;
+			distObj.closestPosIR = areaScan[readingNr].positionDeg;
+		}
+
+		//	Check for the farthest object
+		if (areaScan[readingNr].ping > areaScan[distObj.farthestPING].ping) {
+			distObj.farthestPING = readingNr;
+			distObj.farthestPosPING = areaScan[readingNr].positionDeg;
+		}
+
+		if (areaScan[readingNr].ir > areaScan[distObj.farthestIR].ir) {
+			distObj.farthestIR = readingNr;
+			distObj.farthestPosIR = areaScan[readingNr].positionDeg;
+		}
+	}
+
+	return distObj;
+}
 
 /*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use HardwareSerial2()
 */
 uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpeed = 0, int moveTime = 0) {
-	errorStatus = 0;
+	uint16_t errorStatus = 0;
+	char asciiCR = 13;
+
+	lastRoutine = String(F("moveServoPw"));
+
 	servo->error = 0;
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
-		ssc32.print("#");
-		ssc32.print(servo->pin);
-		ssc32.print(" P");
-		ssc32.print(servoPosition + servo->offset);
+		ssc32Command = ssc32Command + "#" + String(servo->pin) + "P" + String(servoPosition + servo->offset) + " ";
 
 		servo->msPulse = servoPosition;
 		servo->angle = ((servoPosition - SERVO_CENTER_MS) / 10);
@@ -614,28 +926,29 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
 		if (servo->maxDegrees == 180) {
 			servo->angle += 90;
 		}
-	} else if ((servoPosition < servo->minPulse) || (servoPosition > servo->maxPulse)) {
-		servo->error = 201;
-		errorMsg = String("(moveServoPw) Servo pulse is out of range");
 	}
- 
-	if (errorStatus != 0) {
-		processError(errorStatus, errorMsg);
+
+	if ((servoPosition < servo->minPulse) || (servoPosition > servo->maxPulse)) {
+		errorStatus = 201;
+		processError(errorStatus, F("Servo pulse is out of range"));
 	} else {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			ssc32.print(" S");
-			ssc32.print(moveSpeed);
+			ssc32Command = ssc32Command + " S" + String(moveSpeed) + " ";
 		}
     
 		//  Terminate the command
-		if (term) {
+		if (term == true) {
 			if (moveTime != 0) {
-				ssc32.print(" T");
-				ssc32.print(moveTime);
+				ssc32Command = ssc32Command + " T" + String(moveTime) + String(" ");
 			}
 
+			ssc32Command = ssc32Command + asciiCR;
+
+			ssc32.print(ssc32Command);
 			ssc32.println();
+
+			ssc32Command = "";
 		}
   	}
 
@@ -650,144 +963,218 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
     Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use BMSerial
 */
 uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int moveSpeed = 0, int moveTime = 0) {
-	int servoPulse;
+	uint16_t servoPulse;
 
-	errorStatus = 0;
+	uint16_t errorStatus = 0;
+	String errorMsg;
+
+	lastRoutine = String(F("moveServoDegrees"));
+
 	servo->error = 0;
   
 	//  Convert degrees to ms for the servo move
 	if (servo->maxDegrees == 90) {
-		servoPulse = SERVO_CENTER_MS + (servoDegrees * 11) + servo->offset + 50;
+		servoPulse = SERVO_CENTER_MS + (servoDegrees * 11);
 	} else if (servo->maxDegrees == 180) {
-		servoPulse = SERVO_CENTER_MS + ((servoDegrees -90) * 11) + servo->offset + 50;
+		servoPulse = SERVO_CENTER_MS + ((servoDegrees -90) * 11);
 	} else {
 		errorStatus = 202;
-		errorMsg = String("(moveServoDegrees) Servo position (degrees) is invalid");
 	}
 
 	if (errorStatus != 0) {
-		processError(errorStatus, errorMsg);
+		processError(errorStatus, F("Servo position (degrees) is invalid"));
 	} else {
 		if ((servoPulse >= servo->minPulse) && (servoPulse <= servo->maxPulse)) {
-			moveServoPw(servo, servoPulse, true);
+			errorStatus = moveServoPw(servo, servoPulse, true);
+
+			if (errorStatus != 0) {
+				processError(errorStatus, "Could not move the " + servo->descr + " servo");
+			}
 		} else {
 			errorStatus = 201;
-			errorMsg = String("(moveServoDegrees) Servo pulse is out of range");
+			processError(errorStatus, F("Servo pulse is out of range"));
 		}
-	}
-
-	console.print(F("(moveServoDegrees #1) servoDegrees = "));
-	console.print(servoDegrees);
-	console.print(F(",  servoPulse = "));
-	console.print(servoPulse);
-	console.print(F(", servo->minPulse = "));
-	console.print(servo->minPulse);
-	console.print(F(", servo->maxPulse = "));
-	console.println(servo->maxPulse);
-
-	if (errorStatus != 0) {
-		processError(errorStatus, errorMsg);
-		servo->error = errorStatus;
 	}
 
 	return errorStatus;
 }
 
 /*
-	Scan the area for objects
+	Scan an arc of up to 180 degrees, and take sensor readings at each angle increment
 */
 uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
-	int readingNr, positionDeg = startDeg;
-	int nrReadings, totalRangeDeg = 0;
+	uint16_t errorStatus = 0;
+	uint16_t readingNr = 0, nrReadings = 0;
+	int positionDeg = 0;
+	int totalRangeDeg = 0;
 
-	errorStatus = 0;
-	pan->error = 0;
-
-	console.println(F("(scanArea #1) Checking parameters.."));
+	lastRoutine = String(F("scanArea"));
 
 	//	Check the parameters
 	if (startDeg > stopDeg) {
 		//	Start can't be greater than stop
 		errorStatus = 401;
-		errorMsg = String(F("(scanArea #1) Start position is > ending position"));
-	} else if (((SERVO_MAX_DEGREES == 90) && ((startDeg < -90) || (stopDeg > 90))) || ((SERVO_MAX_DEGREES == 180) && ((startDeg < 0) || (stopDeg > 180)))) {
+	} else if (((pan->maxDegrees == 90) && ((startDeg < -90) || (stopDeg > 90))) || ((pan->maxDegrees == 180) && ((startDeg < 0) || (stopDeg > 180)))) {
 		//	One or more parameters is outside of the valid range
 		errorStatus = 402;
-		errorMsg = String(F("(scanArea #2) Servo maximum degrees is invalid"));
+	} else if ((startDeg < pan->minPulse) || (stopDeg > pan->maxPulse)) {
+		//	Out of range for the pan servo
+		errorStatus = 403;
 	} else {
 		//	Calculate the total range, in degrees
 		totalRangeDeg = abs(stopDeg - startDeg);
 
 		//	Calculate the number of readings we need room for
-		nrReadings = abs(totalRangeDeg / incrDeg);
+		nrReadings = totalRangeDeg / incrDeg;
 
 		//	More error checking
-		if (nrReadings > MAX_NUMBER_AREA_READINGS) {
-			//	We can't take this many readings
-			errorStatus = 403;
-			errorMsg = String(F("(scanArea #3) Number of readings is invalid"));
-		} else if (totalRangeDeg > 180) {
+		if (totalRangeDeg > 180) {
 			//	Servos can only move up to 180 degrees
 			errorStatus = 404;
-			errorMsg =  String(F("(scanArea #4) Requested servo move is invalid"));
-		} else if (incrDeg > (totalRangeDeg / nrReadings)) {
-			//	Increment is too large for our range
+		} else if (nrReadings > MAX_NUMBER_AREA_READINGS) {
+			//	We can't take this many readings
 			errorStatus = 405;
-			errorMsg = String(F("(scanArea #5) Move increment is too large for movement range"));
+		} else if (incrDeg > totalRangeDeg) {
+			//	Increment is too large for our range
+			errorStatus = 406;
 		} else {
-			//	Continue normal processing
-			readingNr = 0;
+			/*
+				Continue normal processing
+			*/
 
-			console.println(F("Scanning the area.."));
+			//	Stop, so we can do this scan
+			errorStatus = stopMotors();
 
-			console.print(F("(scanArea #6) startDeg = "));
-			console.print(startDeg);
-			console.print(F(", stopDeg = "));
-			console.print(stopDeg);
-			console.print(F(", incrDeg = "));
-			console.print(incrDeg);
-			console.print(F(", readingNr = "));
-			console.println(readingNr);
+			if (errorStatus != 0) {
+				processError(errorStatus, F("Runaway robot"));
+			} else {
+				readingNr = 0;
 
-			readingNr = 0;
+				console.println(F("Scanning the area.."));
 
-			while (positionDeg <= stopDeg) {
-				console.print(F("(scanArea #7) positionDeg = "));
-				console.print(positionDeg);
-				console.print(F(", readingNr = "));
-				console.println(readingNr);
+				for (positionDeg = startDeg; positionDeg < stopDeg; positionDeg += incrDeg) {
+					errorStatus = moveServoDegrees(pan, positionDeg, true);
 
-				errorStatus = moveServoDegrees(pan, positionDeg, true, 5000, 5000);
+					if (errorStatus != 0) {
+						processError(errorStatus, "Could not move the " + pan->descr + " servo");
+						break;
+					} else {
+						//	Delay to let the pan/tilt stabilize after moving it
+						delay(1500);
+
+						//	Take a reading from each pan/tilt sensor in cm
+						areaScan[readingNr].ping = readParallaxPING(PING_FRONT_CENTER, true);
+						areaScan[readingNr].ir = readSharpGP2Y0A21YK0F(IR_FRONT_CENTER);
+						areaScan[readingNr].positionDeg = positionDeg;
+
+						if (HAVE_COLOR_SENSOR) {
+							areaScan[readingNr].color = readColorSensor();
+						}
+
+						if (HAVE_HEAT_SENSOR) {
+							areaScan[readingNr].heat = readHeatSensor();
+						}
+
+						readingNr += 1;
+					}
+				}
+
+				//	Send the pan servo back to home position
+				errorStatus = moveServoPw(pan, pan->homePos, true);
 
 				if (errorStatus != 0) {
-					processError(errorStatus, F("(scanArea #8) There was a problem moving the pan servo"));
-					break;
-				} else {
-					//	Take a reading from each pan/tilt sensor in cm
-					areaScan[readingNr].ping = readPING(PING_FRONT_CENTER, true);
-					areaScan[readingNr].ir = readIR(IR_FRONT_CENTER);
-					areaScan[readingNr].positionDeg = positionDeg;
-
-					readingNr += 1;
-					positionDeg += incrDeg;
+					processError(errorStatus, "Could not move the " + pan->descr + " servo");
 				}
-			}
-
-			if (!errorStatus) {
-				initPanTilt(pan, &tilt);
 			}
 		}
 	}
 
 	if (errorStatus != 0) {
-		nrAreaScanReadings = -1;
+		processError(errorStatus, F("Could not complete the area scan"));
+		nrAreaReadings = -1;
 		areaScanValid = false;
-		pan->error = errorStatus;
 	} else {
+		//	Robot has not moved
+		hasNotMoved = true;
+
 		//	Set the number of readings taken
-		nrAreaScanReadings = readingNr;
+		nrAreaReadings = readingNr;
+
+		//	This area scan is valid
 		areaScanValid = true;
-		pan->error = 0;
+	}
+
+	return errorStatus;
+}
+
+/*
+	Set the motor speed
+*/
+uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
+	uint16_t errorStatus = 0;
+	uint16_t pulse = SERVO_CENTER_MS;
+	int motorSpeed = spd;
+
+	lastRoutine = String(F("setMotorSpeed"));
+
+	if ((spd < SERVO_MOTOR_MIN_SPEED) || (spd > SERVO_MOTOR_MAX_SPEED)) {
+		errorStatus = 501;
+		processError(errorStatus, F("Speed is out of range"));
+	} else {
+		Servo servo;
+
+		//	Setup for the call to moveServoPw()
+		servo.pin = servoMotor->pin;
+		servo.descr = String(servoMotor->descr);
+		servo.offset = servoMotor->offset;
+		servo.homePos = servoMotor->neutral;
+		servo.minPulse = servoMotor->minPulse;
+		servo.maxPulse = servoMotor->maxPulse;
+		servo.error = 0;
+
+		if (servoMotor->forward == false) {
+			motorSpeed *= -1;
+		}
+
+		pulse += motorSpeed;
+		servo.msPulse = pulse;
+
+		//	Set the motor's speed
+		errorStatus = moveServoPw(&servo, pulse, term);
+
+		if (errorStatus != 0) {
+			servoMotor->error = servo.error;
+			processError(errorStatus, "Could not set the " + servoMotor->descr + " motor speed");
+		} else {
+			hasNotMoved = false;
+		}
+	}
+
+	return errorStatus;
+}
+
+/*
+	Stop both motors NOW
+*/
+uint16_t stopMotors (void) {
+	uint16_t errorStatus = 0;
+
+	lastRoutine = String(F("stopMotors"));
+	console.println(F("Stopping the motors.."));
+
+	errorStatus = setMotorSpeed(&leftMotorM1, 0, false);
+
+	if (errorStatus != 0) {
+		processError(errorStatus, "Could not set the speed for the " + leftMotorM1.descr + " motor");
+	} else {
+		errorStatus = setMotorSpeed(&rightMotorM2, 0, true);
+
+		if (errorStatus != 0) {
+			processError(errorStatus, "Could not set the speed for the " + rightMotorM2.descr + " motor");
+		} else {
+			delay(2000);
+			hasNotMoved = true;
+		}
 	}
 
 	return errorStatus;
@@ -797,161 +1184,255 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 /*	Initialization routines								*/
 /********************************************************/
 
-void initGripper (Servo *raise, Servo *wrist, Servo *grab) {
-	console.println(F("Initializing Gripper Position.."));
+uint16_t initGripper (Servo *lift, Servo *wrist, Servo *grab) {
+	uint16_t errorStatus = 0;
+
+	lastRoutine = String(F("initGripper"));
+
+	console.println("Initializing Gripper Position..");
   
 	//  Put the 3DOF gripper at home position
-	moveServoPw(grab, SERVO_GRIP_GRAB_HOME, 0, 0, false);
-	moveServoPw(raise, SERVO_GRIP_LIFT_HOME + 150, 0, 0, false);
-	moveServoPw(wrist, SERVO_GRIP_WRIST_HOME, 0, 0, true);
+	errorStatus = moveServoPw(lift, lift->homePos, false);
+
+	if (errorStatus != 0) {
+		processError(errorStatus, "Could not initialize the " + grab->descr + " servo");
+	} else {
+		errorStatus = moveServoPw(wrist, wrist->homePos, false);
+
+		if (errorStatus != 0) {
+			processError(errorStatus, "Could not initialize the " + wrist->descr + " servo");
+		} else {
+			errorStatus = moveServoPw(grab, grab->homePos, true);
+
+			if (errorStatus != 0) {
+				processError(errorStatus, "Could not initialize the " + grab->descr + " servo");
+			}
+		}
+	}
+
+	return errorStatus;
 }
 
 /*
 	Set the Pan/Tilt to Home Position
 */
-void initPanTilt (Servo *pan, Servo *tilt) {
+uint16_t initPanTilt (Servo *pan, Servo *tilt) {
+	uint16_t errorStatus = 0;
+
+	lastRoutine = String(F("initPanTilt"));
+
 	console.println(F("Initializing Pan/Tilt Position.."));
-  
+
 	//  Put the front pan/tilt at home position
-	moveServoPw(pan, SERVO_PAN_HOME, 0, 0, false);
-	moveServoPw(tilt, SERVO_TILT_HOME, 0, 0, true);
+	errorStatus = moveServoPw(pan, pan->homePos, false);
+
+	if (errorStatus != 0) {
+		processError(errorStatus, "Could not initialize the " + pan->descr + " servo");
+	} else {
+		errorStatus = moveServoPw(tilt, tilt->homePos, true);
+
+		if (errorStatus != 0) {
+			processError(errorStatus, "Could not initialize the " + tilt->descr + " servo");
+		}
+	}
+
+	return errorStatus;
+}
+
+/*
+	Initialize the motors.
+*/
+uint16_t initMotors (ServoMotor *leftM1, ServoMotor *rightM2) {
+	uint16_t errorStatus = 0;
+
+	lastRoutine = String(F("initMotors"));
+
+	console.println(F("Initializing Motors.."));
+
+	errorStatus = setMotorSpeed(leftM1, SERVO_MOTOR_LEFT_NEUTRAL, false);
+
+	if (errorStatus != 0) {
+		processError(errorStatus, "Could not set the speed for the " + leftM1->descr + " motor");
+	} else {
+		leftM1->forward = SERVO_MOTOR_LEFT_DIRECTION;
+
+		errorStatus = setMotorSpeed(rightM2, SERVO_MOTOR_RIGHT_NEUTRAL, true);
+
+		if (errorStatus != 0) {
+			processError(errorStatus, "Could not set the speed for the " + rightM2->descr + " motor");
+		} else {
+			rightM2->forward = SERVO_MOTOR_RIGHT_DIRECTION;
+		}
+	}
+
+	return errorStatus;
 }
 
 /*
 	Initialize sensors
 */
-void initSensors (void) {
+uint16_t initSensors (void) {
+	uint16_t errorStatus = 0;
+
+	lastRoutine = String(F("initSensors"));
+
 	console.println(F("Initializing Sensors.."));
-/*
-	console.println(F("     TMP006 Heat..");
 
-	//	Initialize the TMP006 heat sensor
-	if (! heat.begin()) {
-		console.println(F("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!"));
-		while(1);
+	//	Initialize the 10DOF Inertial Measurement Unit (Adafruit)
+	if (HAVE_10DOF_IMU || HAVE_LSM303DLHC_ACCEL) {
+		//	Initialize the accelerometer
+		console.println(F("     LSM303DLHC Accelerometer.."));
+
+		if (! accelerometer.begin()) {
+			/* There was a problem detecting the LSM303DLHC ... check your connections */
+			errorStatus = 601;
+			processError(errorStatus, F("Ooops, no LSM303DLHC detected ... Check your wiring!"));
+		} else {
+			console.println(F("     LSM303DLHC Magnetometer (Compass).."));
+
+			//	Initialize the magnetometer (compass) sensor
+			if (! compass.begin()) {
+				/*	There was a problem detecting the LSM303DLHC ... check your connections */
+				errorStatus = 602;
+				processError(errorStatus, F("Ooops, no LSM303DLHC detected ... Check your wiring!"));
+			}
+		}
 	}
-	
-	console.println(F("     TCS34725 RGB Color.."));
 
-	//	Initialize the TCS34725 color sensor
-	if (! rgb.begin()) {
-		console.println(F("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!"));
-		while(1);
+	if ((errorStatus == 0) && (HAVE_10DOF_IMU || HAVE_L3GD20_GYRO)) {
+		console.println(F("     L3GD20 Gyroscope.."));
+
+		//	Initialize and warn if we couldn't detect the gyroscope chip
+		if (! gyroscope.begin(gyroscope.L3DS20_RANGE_250DPS)) {
+			errorStatus = 603;
+			processError(errorStatus, F("Oops ... unable to initialize the L3GD20. Check your wiring!"));
+		}
 	}
-*/
-	console.println(F("     DS1307 Real Time Clock.."));
 
-	//	Check to be sure the RTC is running
-//	if (! clock.isrunning()) {
-//		console.println(F("The Real Time Clock is NOT running!"));
-//		while(1);
-//	}
+	if ((errorStatus == 0) && (HAVE_10DOF_IMU || HAVE_BMP180_TEMP)) {
+
+	}
+
+	if ((errorStatus == 0) && HAVE_10DOF_IMU) {
+		console.println(F("     10 DOF Inertial Measurement Unit.."));
+
+		imu.begin();
+	}
+
+	if ((errorStatus == 0) && (HAVE_COLOR_SENSOR)) {
+		//	Initialize the TCS3725 RGB Color sensor (Adafruit)
+		if (! rgb.begin()) {
+			errorStatus = 604;
+			processError(errorStatus, F("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C Address!"));
+		}
+	}
+
+	if ((errorStatus == 0) && (HAVE_HEAT_SENSOR)) {
+		//	Initialize the TMP006 heat sensor
+		if (! heat.begin()) {
+			errorStatus = 605;
+			processError(errorStatus, F("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C Address!"));
+		}
+	}
+
+	if ((errorStatus == 0) && (HAVE_DS1307_RTC)) {
+		console.println(F("     DS1307 Real Time Clock.."));
+
+		//	Check to be sure the RTC is running
+		if (! clock.isrunning()) {
+			errorStatus = 606;
+			processError(errorStatus, F("The Real Time Clock is NOT running!"));
+		}
+	}
+
+	return errorStatus;
 }
 
 /*
 	Initialize servos to defaults
 */
-void initServos (Servo *lift, Servo *wrist, Servo *grab, Servo *pan, Servo *tilt) {
-	lift->pin = SERVO_GRIP_LIFT_PIN;
-	lift->offset = SERVO_GRIP_LIFT_OFFSET;
-	lift->homePos = SERVO_GRIP_LIFT_HOME;
-	lift->msPulse = 0;
-	lift->angle = 0;
-	lift->minPulse = SERVO_GRIP_LIFT_MIN;
-	lift->maxPulse = SERVO_GRIP_LIFT_MAX;
-	lift->maxDegrees = SERVO_MAX_DEGREES;
-	lift->error = 0;
+void initServos (void) {
+	lastRoutine = String(F("initServos"));
 
-	wrist->pin = SERVO_GRIP_WRIST_PIN;
-	wrist->offset = SERVO_GRIP_WRIST_OFFSET;
-	wrist->homePos = SERVO_GRIP_WRIST_HOME;
-	wrist->msPulse = 0;
-	wrist->angle = 0;
-	wrist->minPulse = SERVO_GRIP_WRIST_MIN;
-	wrist->maxPulse = SERVO_GRIP_WRIST_MAX;
-	wrist->maxDegrees = SERVO_MAX_DEGREES;
-	wrist->error = 0;
+	gripLift.pin = SERVO_GRIP_LIFT_PIN;
+	gripLift.descr = String(SERVO_GRIP_LIFT_NAME);
+	gripLift.offset = SERVO_GRIP_LIFT_OFFSET;
+	gripLift.homePos = SERVO_GRIP_LIFT_HOME;
+	gripLift.msPulse = 0;
+	gripLift.angle = 0;
+	gripLift.minPulse = SERVO_GRIP_LIFT_MIN;
+	gripLift.maxPulse = SERVO_GRIP_LIFT_MAX;
+	gripLift.maxDegrees = SERVO_MAX_DEGREES;
+	gripLift.error = 0;
 
-	grab->pin = SERVO_GRIP_GRAB_PIN;
-	grab->offset = SERVO_GRIP_GRAB_OFFSET;
-	grab->homePos = SERVO_GRIP_GRAB_HOME;
-	grab->msPulse = 0;
-	grab->angle = 0;
-	grab->minPulse = SERVO_GRIP_GRAB_MIN;
-	grab->maxPulse = SERVO_GRIP_GRAB_MAX;
-	grab->maxDegrees = SERVO_MAX_DEGREES;
-	grab->error = 0;
+	gripWrist.pin = SERVO_GRIP_WRIST_PIN;
+	gripWrist.descr = String(SERVO_GRIP_WRIST_NAME);
+	gripWrist.offset = SERVO_GRIP_WRIST_OFFSET;
+	gripWrist.homePos = SERVO_GRIP_WRIST_HOME;
+	gripWrist.msPulse = 0;
+	gripWrist.angle = 0;
+	gripWrist.minPulse = SERVO_GRIP_WRIST_MIN;
+	gripWrist.maxPulse = SERVO_GRIP_WRIST_MAX;
+	gripWrist.maxDegrees = SERVO_MAX_DEGREES;
+	gripWrist.error = 0;
 
-	pan->pin = SERVO_PAN_PIN;
-	pan->offset = SERVO_PAN_OFFSET;
-	pan->homePos = SERVO_PAN_HOME;
-	pan->msPulse = 0;
-	pan->angle = 0;
-	pan->minPulse = SERVO_PAN_LEFT_MIN;
-	pan->maxPulse = SERVO_PAN_RIGHT_MAX;
-	pan->maxDegrees = SERVO_MAX_DEGREES;
-	pan->error = 0;
+	gripGrab.pin = SERVO_GRIP_GRAB_PIN;
+	gripGrab.descr = String(SERVO_GRIP_GRAB_NAME);
+	gripGrab.offset = SERVO_GRIP_GRAB_OFFSET;
+	gripGrab.homePos = SERVO_GRIP_GRAB_HOME;
+	gripGrab.msPulse = 0;
+	gripGrab.angle = 0;
+	gripGrab.minPulse = SERVO_GRIP_GRAB_MIN;
+	gripGrab.maxPulse = SERVO_GRIP_GRAB_MAX;
+	gripGrab.maxDegrees = SERVO_MAX_DEGREES;
+	gripGrab.error = 0;
 
-	tilt->pin = SERVO_TILT_PIN;
-	tilt->offset = SERVO_TILT_OFFSET;
-	tilt->homePos = SERVO_TILT_HOME;
-	tilt->msPulse = 0;
-	tilt->angle = 0;
-	tilt->minPulse = SERVO_TILT_DOWN_MIN;
-	tilt->maxPulse = SERVO_TILT_UP_MAX;
-	tilt->maxDegrees = SERVO_MAX_DEGREES;
-	tilt->error = 0;
+	pan.pin = SERVO_PAN_PIN;
+	pan.descr = String(SERVO_PAN_NAME);
+	pan.offset = SERVO_PAN_OFFSET;
+	pan.homePos = SERVO_PAN_HOME;
+	pan.msPulse = 0;
+	pan.angle = 0;
+	pan.minPulse = SERVO_PAN_LEFT_MIN;
+	pan.maxPulse = SERVO_PAN_RIGHT_MAX;
+	pan.maxDegrees = SERVO_MAX_DEGREES;
+	pan.error = 0;
+
+	tilt.pin = SERVO_TILT_PIN;
+	tilt.descr = String(SERVO_TILT_NAME);
+	tilt.offset = SERVO_TILT_OFFSET;
+	tilt.homePos = SERVO_TILT_HOME;
+	tilt.msPulse = 0;
+	tilt.angle = 0;
+	tilt.minPulse = SERVO_TILT_DOWN_MIN;
+	tilt.maxPulse = SERVO_TILT_UP_MAX;
+	tilt.maxDegrees = SERVO_MAX_DEGREES;
+	tilt.error = 0;
 }
 
 /************************************************************/
-/*	Miscelaneous routines									*/
+/*	Runs once to initialize everything						*/
 /************************************************************/
-
-/*
-    Process error conditions
-*/
-void processError (byte err, String msg) {
-	console.print(F("Error "));
-	console.print(err);
-	console.print(F(": "));
-	console.print(msg);
-	console.println(F("!"));
-}
-
-/*
-	Wait for a bit to allow time to read the Console Serial Monitor log
-*/
-void wait (uint8_t nrSeconds) {
-	uint8_t count;
-
-	console.print(F("Waiting"));
-
-	for (count = 0; count < nrSeconds; count++) {
-		console.print(F("."));
-		delay(1000);
-	}
-
-	console.println();
-}
-
-/*
-	Runs once to initialize everything
-*/
 void setup (void) {
-	//  Start up the Wire library
-	Wire.begin();
+	uint16_t errorStatus = 0;
+
+	lastRoutine = String(F("SETUP"));
 
 	//  Initialize the console port
 	console.begin(115200);
 
 	console.println();
-	console.print(F("SES Rover, version "));
+	console.print(F("SES Rover Motor Servo Test, version "));
 	console.print(BUILD_VERSION);
 	console.print(F(" on "));
-	console.print(BUILD_DATE);
-	console.print(F(" for the "));
+	console.println(BUILD_DATE);
+	console.print(F("     for the "));
 	console.print(BUILD_BOARD);
 	console.println(F("."));
+
+	//	Delay for 10 seconds, before starting initialization
+	console.println();
+	wait(10, "initialization");
 
 	console.println();
 	console.println(F("Initializing Serial Ports.."));
@@ -959,7 +1440,7 @@ void setup (void) {
 	//	Initialize the SSC-32 servo controller port
 	ssc32.begin(115200);
 
-	//	Initialize the XBee communication port (BMSerial)
+	//	Initialize the XBee (ZigBee) Mesh Wireless port
 	xbee.begin(115200);
 
 	console.println(F("Initializing Digital Pins.."));
@@ -968,72 +1449,156 @@ void setup (void) {
 	pinMode(HEARTBEAT_LED, OUTPUT);
 	digitalWrite(HEARTBEAT_LED, LOW);
 
-	//	Initialize and turn off the TCS34725 RGB Color sensor's LED
-	pinMode(COLOR_SENSOR_LED, OUTPUT);
-	digitalWrite(COLOR_SENSOR_LED, LOW);
-	delay(250);
-	digitalWrite(COLOR_SENSOR_LED, HIGH);
-	delay(250);
-	digitalWrite(COLOR_SENSOR_LED, LOW);
+ 	//  Initialize all servos
+ 	initServos();
 
 	//	Initialize all sensors
-	initSensors();
+	errorStatus = initSensors();
 
- 	//  Initialize all servos
- 	initServos(&gripLift, &gripWrist, &gripGrab, &pan, &tilt);
+	if (errorStatus != 0) {
+		processError(errorStatus, F("Could not initialize the sensors"));
+	} else {
+		//	Set the Pan/Tilt to home position
+		errorStatus = initPanTilt(&pan, &tilt);
 
-	//	Set the Pan/Tilt to home position
-	initPanTilt(&pan, &tilt);
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Could not initialize the PAN/TILT"));
+		} else {
+			//	Set the Gripper to home position
+			errorStatus = initGripper(&gripLift, &gripWrist, &gripGrab);
+		}
 
-	//	Set the Gripper to home position
-	initGripper(&gripLift, &gripWrist, &gripGrab);
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Could not initialize the GRIPPER"));
+		} else {
+			//	Initialize the motors
+			errorStatus = initMotors(&leftMotorM1, &rightMotorM2);
+		}
 
-	console.println();
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Could not initialize the motors"));
+		} else {
+			console.println();
+
+			//	Start the motors, forward
+			console.println(F("Starting the motors, forward"));
+			errorStatus = setMotorSpeed(&leftMotorM1, 500, false);
+
+			if (errorStatus != 0) {
+				processError(errorStatus, F("Could not set speed for the LEFT motor"));
+			} else {
+				errorStatus = setMotorSpeed(&rightMotorM2, 500, true);
+
+				if (errorStatus != 0) {
+					processError(errorStatus, F("Could not set speed for the RIGHT motor"));
+				} else {
+					delay(2000);
+
+					//	Stop the motors
+					errorStatus = stopMotors();
+				}
+			}
+
+			if (errorStatus != 0) {
+				processError(errorStatus, F("Runaway robot"));
+			} else {
+				//	Start the motors, reverse
+				console.println(F("Starting the motors, reverse"));
+				errorStatus = setMotorSpeed(&leftMotorM1, -500, false);
+
+				if (errorStatus != 0) {
+					processError(errorStatus, F("Could not set speed for the LEFT motor"));
+				} else {
+					errorStatus = setMotorSpeed(&rightMotorM2, -500, true);
+
+					if (errorStatus != 0) {
+						processError(errorStatus, F("Could not set speed for the RIGHT motor"));
+					} else {
+						delay(2000);
+
+						//	Stop the motors
+						errorStatus = stopMotors();
+
+						if (errorStatus != 0) {
+							processError(errorStatus, F("Runaway robot"));
+						}
+					}
+				}
+			}
+		}
+
+		if (errorStatus == 0) {
+			//	Scan the entire 180 degree range and take readings
+			console.println(F("Doing initial area scan.."));
+			errorStatus = scanArea(&pan, -90, 90, 10);
+
+			if (errorStatus != 0) {
+				processError(errorStatus, F("Could not complete the initial area scan"));
+			} else {
+				areaScanValid = true;
+			}
+		}
+	}
 }
 
-/*
-	Runs forever
-*/
+/************************************************************/
+/*	Runs forever											*/
+/************************************************************/
 void loop (void) {
+	uint16_t errorStatus = 0;
+
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
 	//	Display related variables
 	boolean amTime;
-	uint8_t displayNr = 0, count = 0;
+	uint8_t displayNr = 0, count = 0, readingNr = 0;
+	uint8_t areaClosestReadingPING = 0, areaFarthestReadingPING = 0;
+	uint8_t areaClosestReadingIR = 0, areaFarthestReadingIR = 0;
 	uint8_t currentHour = now.hour(), nrDisplays = 0;
 
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
 
+	DistanceObject distObject;
+	ColorSensor colorData;
+	HeatSensor heatData;
+	InertialMeasurementUnit imuData;
+
 	/*
 		Code starts here
 	*/
+
+	lastRoutine = String(F("LOOP"));
 
 	// Pulse the heartbeat LED
 	pulseDigital(HEARTBEAT_LED, 500);
 
 	currentMinute = now.minute();
 
+	//	Send something wirelessly
+	xbee.println(F("Hello World, I'm wireless!"));
+
 	/*
-		This is code that only runs one time, to initialize
+		This is code that only runs ONE time, to initialize
 			special cases.
 	*/
 	if (firstLoop) {
+		console.println(F("Entering the main loop.."));
+
 		lastMinute = currentMinute;
-/*
-		//	Scan the entire 180 degree range and take readings
-		console.println(F("Doing initial area scan.."));
 
-		errorStatus = scanArea(&pan, -90, 90, 10);
-
-		if (errorStatus != 0) {
-			processError(errorStatus, "Main, firstLoop");
-		}
-
-		wait(LOOP_DELAY_SECONDS);
-*/
 		firstLoop = false;
+	}
+
+	if (HAVE_10DOF_IMU) {
+		imuData = readIMU();
+
+		displayIMUData(&imuData);
+
+		/*
+			Put Accelerometer, Compass, and Orientation reactive behaviors HERE
+		*/
 	}
 
 	console.println(F("Getting Distance Sensor readings.."));
@@ -1041,7 +1606,7 @@ void loop (void) {
 	//	Get readings from all the GP2Y0A21YK0F Analog IR range sensors, if any, and store them
 	if (MAX_NUMBER_IR > 0) {
 		for (analogPin = 0; analogPin < MAX_NUMBER_IR; analogPin++) { 
-			ir[analogPin] = readIR(analogPin);
+			ir[analogPin] = readSharpGP2Y0A21YK0F(analogPin);
 		}
 
 		displayIR();
@@ -1050,7 +1615,7 @@ void loop (void) {
 	//	Get readings from all the Parallax PING Ultrasonic range sensors, if any, and store them
 	if (MAX_NUMBER_PING > 0) {
 		for (digitalPin = 0; digitalPin < MAX_NUMBER_PING; digitalPin++) {
-			ping[digitalPin] = readPING(digitalPin);
+			ping[digitalPin] = readParallaxPING(digitalPin);
 		}
 
 		displayPING();
@@ -1060,34 +1625,34 @@ void loop (void) {
 		Put distance related reactive behaviors HERE
 	*/
 
-	/*
-		Read the TCS34725 RGB color sensor
-	*/
+	if (ping[PING_FRONT_CENTER] < PING_MIN_DISTANCE_CM) {
+		stopMotors();
+		errorStatus = scanArea(&pan, -90, 90, 10);
 
-/*
-	rgb.getRawData(&colorData.red, &colorData.green, &colorData.blue, &colorData.c);
-	colorData.colorTemp = rgb.calculateColorTemperature(colorData.red, colorData.green, colorData.blue);
-	colorData.lux = rgb.calculateLux(colorData.red, colorData.green, colorData.blue);
+	}
 
-	displayColorSensorReadings(&colorData);
-*/
+	//	Read the TCS34725 RGB color sensor, if we have it
+	if (HAVE_COLOR_SENSOR) {
+		colorData = readColorSensor();
 
-	/*
-		Read the TMP006 heat sensor
-	*/
+		displayColorSensorData(&colorData);
+	}
 
-/*
-	heatData.dieTemp = heat.readDieTempC();
-	heatData.objectTemp = heat.readObjTempC();
+	//	Read the TMP006 heat sensor, if we have it
+	if (HAVE_HEAT_SENSOR) {
+		heatData = readHeatSensor();
 	
-	displayHeatSensorReadings(&heatData);
+		displayHeatSensorData(&heatData);
+	}
+
+	//	Find the closest and farthest objects
+	distObject = findDistanceObjects();
+
+	/*
+		Put object tracking behaviors HERE
+	*/
 
 	console.println();
-*/
-
-	if (errorStatus != 0) {
-		processError(errorStatus, "(MAIN) Unknown Error");
-	}
 
 	//	Count the minutes
 	if (currentMinute != lastMinute) {
@@ -1104,7 +1669,6 @@ void loop (void) {
 	/*
 		Update the information display control variables
 	*/
-
 	if (DISPLAY_INFORMATION) {
 		displayDate = (dateMinuteCount == DISPLAY_DATE_FREQ_MIN);
 		displayTemperature = (temperatureMinuteCount == DISPLAY_TEMPERATURE_FREQ_MIN);
