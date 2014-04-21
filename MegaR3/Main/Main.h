@@ -16,8 +16,8 @@
 				Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 
-#ifndef	__MOTOR_SERVO_TEST_H__
-#define	__MOTOR_SERVO_TEST_H__
+#ifndef	__MAIN_H__
+#define	__MAIN_H__
 
 /*********************************************************/
 /*	General settings 									 */
@@ -42,7 +42,9 @@
 #define	DISPLAY_TIME_FREQ_MIN			15
 #define	DISPLAY_TEMPERATURE_FREQ_MIN	15
 
-//	Optional Sensors
+/*
+	Optional Sensors and Peripherals
+*/
 #define HAVE_COLOR_SENSOR				false
 #define HAVE_HEAT_SENSOR				false
 #define HAVE_DS1307_RTC					false
@@ -56,9 +58,9 @@
 
 #define HAVE_7SEG_DISPLAYS				false
 
-/********************************************************/
-/*	Arduino Mega R3 (Arduino) Settings 					*/
-/********************************************************/
+/*********************************************************
+	Arduino Mega R3 (Arduino) Settings
+*********************************************************/
 
 /*
 	Serial ports
@@ -85,7 +87,7 @@
 #define	SERIAL_ROBOCLAW_TX_PIN			20
 
 /*
-	Peripheral Settings - Displays, etc.
+	Peripheral Settings, for Displays, Sound, etc.
 */
 
 //	Display constants
@@ -94,15 +96,16 @@
 
 #define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + MAX_NUMBER_7SEG_DISPLAYS
 
-//	Other Resources
+/*
+	Other Resources
+*/
 #define	COLOR_SENSOR_LED				53
-#define	SPEAKER_OUT						52
+#define	SPEAKER_OUT						44 			//	Digital 44 - 46, have PWM capability
 #define	HEARTBEAT_LED       	        13
 
 /*
 	Sensor settings
 */
-
 #define	MAX_NUMBER_AREA_READINGS		36
 
 //	Parallax PING Untrasonic sensors
@@ -133,8 +136,17 @@
 #define	ROBOCLAW_KD						0.25
 #define	ROBOCLAW_QPPS					44000
 
-#define ROBOCLAW_MOTOR_LEFT_NAME		"Left"
-#define ROBOCLAW_MOTOR_RIGHT_NAME		"Right"
+#define ROBOCLAW_MOTOR_LEFT_NAME		"Left Gear Motor"
+#define ROBOCLAW_MOTOR_RIGHT_NAME		"Right Gear Motor"
+
+/*********************************************************
+	Sound generation constants
+*********************************************************/
+
+//	These are to support the playMelody() routine, as it is now.
+#define NOTE_NAMES						{ 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' }
+#define TONE_FREQUENCIES				{ 1915, 1700, 1519, 1432, 1275, 1136, 1014, 956 }
+#define MAX_COUNT						24
 
 /*********************************************************
 	Lynxmotion SSC-32 Servo Controller Settings
@@ -187,7 +199,7 @@
 #define	SERVO_MOTOR_MAX_SPEED			1000
 
 #define	SERVO_MOTOR_LEFT_PIN			4
-#define SERVO_MOTOR_LEFT_NAME			"Left Motor"
+#define SERVO_MOTOR_LEFT_NAME			"Left Servo Motor"
 #define	SERVO_MOTOR_LEFT_NEUTRAL		SERVO_MOTOR_NEUTRAL
 #define	SERVO_MOTOR_LEFT_OFFSET	        0
 #define	SERVO_MOTOR_LEFT_DIRECTION		false
@@ -195,15 +207,15 @@
 #define	SERVO_MOTOR_LEFT_MAX			2500
 
 #define	SERVO_MOTOR_RIGHT_PIN	        5
-#define SERVO_MOTOR_RIGHT_NAME			"Right Motor"
+#define SERVO_MOTOR_RIGHT_NAME			"Right Servo Motor"
 #define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
 #define	SERVO_MOTOR_RIGHT_OFFSET		-50
 #define SERVO_MOTOR_RIGHT_DIRECTION		true
 #define	SERVO_MOTOR_RIGHT_MIN			500
 #define	SERVO_MOTOR_RIGHT_MAX			2500
 
-/*********************************************************************/
-/*	Structs for data we store about various onboard devices	*/
+/**********************************************************************
+	Structs for data we store about various onboard devices
 /*********************************************************************/
 
 struct bmp180Data {
@@ -263,6 +275,7 @@ struct HeatSensor {
 	float objectTempC;
 };
 
+//	Holds are closest and farthest object distance readinga
 struct DistanceObject {
 	uint8_t closestPING;
 	uint16_t closestPosPING;
