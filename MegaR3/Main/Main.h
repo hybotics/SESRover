@@ -25,8 +25,8 @@
 
 #define	I2C_ADDRESS						0x50
 
-#define	BUILD_VERSION					"0.2.1"
-#define	BUILD_DATE 						"20-Apr-2014"
+#define	BUILD_VERSION					"0.2.2"
+#define	BUILD_DATE 						"21-Apr-2014"
 #define	BUILD_BOARD						"Arduino Mega 2560 R3, with Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
