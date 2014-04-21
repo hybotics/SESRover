@@ -73,6 +73,8 @@
 					Added display of distance objects in displayAreaScanReadings().
 					-------------------------------------------------------------------------------
 					v0.2.1 20-Apr-2014:
+					Fixed a bug in the scanArea() routine. The index variable needed to be an int,
+						because it can be negative. It was a uint16_6. The scanner works now!
 					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -335,12 +337,17 @@ void processError (byte errCode, String errMsg) {
 /*
 	Wait for a bit to allow time to read the Console Serial Monitor log
 */
-void wait (uint8_t nrSeconds) {
+void wait (uint8_t nrSeconds, String text = "") {
 	uint8_t count;
 
 	lastRoutine = String(F("wait"));
 
 	console.print(F("Waiting"));
+
+	if (text != "") {
+		console.print(F(" for "));
+		console.print(text);
+	}
 
 	for (count = 0; count < nrSeconds; count++) {
 		console.print(F("."));
@@ -956,7 +963,7 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
     Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use BMSerial
 */
 uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int moveSpeed = 0, int moveTime = 0) {
-	int servoPulse;
+	uint16_t servoPulse;
 
 	uint16_t errorStatus = 0;
 	String errorMsg;
@@ -967,9 +974,9 @@ uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int mov
   
 	//  Convert degrees to ms for the servo move
 	if (servo->maxDegrees == 90) {
-		servoPulse = SERVO_CENTER_MS + (servoDegrees * 11) + servo->offset;
+		servoPulse = SERVO_CENTER_MS + (servoDegrees * 11);
 	} else if (servo->maxDegrees == 180) {
-		servoPulse = SERVO_CENTER_MS + ((servoDegrees -90) * 11) + servo->offset;
+		servoPulse = SERVO_CENTER_MS + ((servoDegrees -90) * 11);
 	} else {
 		errorStatus = 202;
 	}
@@ -977,13 +984,12 @@ uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int mov
 	if (errorStatus != 0) {
 		processError(errorStatus, F("Servo position (degrees) is invalid"));
 	} else {
-		console.print(F("(moveServoDegrees #1) servoPulse = "));
-		console.print(servoPulse);
-		console.print(F(", servoDegrees = "));
-		console.println(servoDegrees);
-
 		if ((servoPulse >= servo->minPulse) && (servoPulse <= servo->maxPulse)) {
-			moveServoPw(servo, servoPulse, true);
+			errorStatus = moveServoPw(servo, servoPulse, true);
+
+			if (errorStatus != 0) {
+				processError(errorStatus, "Could not move the " + servo->descr + " servo");
+			}
 		} else {
 			errorStatus = 201;
 			processError(errorStatus, F("Servo pulse is out of range"));
@@ -999,12 +1005,10 @@ uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int mov
 uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 	uint16_t errorStatus = 0;
 	uint16_t readingNr = 0, nrReadings = 0;
-	uint16_t positionDeg = 0;
+	int positionDeg = 0;
 	int totalRangeDeg = 0;
 
 	lastRoutine = String(F("scanArea"));
-
-	errorStatus = stopMotors();
 
 	//	Check the parameters
 	if (startDeg > stopDeg) {
@@ -1037,35 +1041,51 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 			/*
 				Continue normal processing
 			*/
-			readingNr = 0;
 
-			console.println(F("Scanning the area.."));
+			//	Stop, so we can do this scan
+			errorStatus = stopMotors();
 
-			for (positionDeg = startDeg; positionDeg < stopDeg; positionDeg += incrDeg) {
-				errorStatus = moveServoDegrees(pan, positionDeg, true);
+			if (errorStatus != 0) {
+				processError(errorStatus, F("Runaway robot"));
+			} else {
+				readingNr = 0;
+
+				console.println(F("Scanning the area.."));
+
+				for (positionDeg = startDeg; positionDeg < stopDeg; positionDeg += incrDeg) {
+					errorStatus = moveServoDegrees(pan, positionDeg, true);
+
+					if (errorStatus != 0) {
+						processError(errorStatus, "Could not move the " + pan->descr + " servo");
+						break;
+					} else {
+						//	Delay to let the pan/tilt stabilize after moving it
+						delay(1500);
+
+						//	Take a reading from each pan/tilt sensor in cm
+						areaScan[readingNr].ping = readParallaxPING(PING_FRONT_CENTER, true);
+						areaScan[readingNr].ir = readSharpGP2Y0A21YK0F(IR_FRONT_CENTER);
+						areaScan[readingNr].positionDeg = positionDeg;
+
+						if (HAVE_COLOR_SENSOR) {
+							areaScan[readingNr].color = readColorSensor();
+						}
+
+						if (HAVE_HEAT_SENSOR) {
+							areaScan[readingNr].heat = readHeatSensor();
+						}
+
+						readingNr += 1;
+					}
+				}
+
+				//	Send the pan servo back to home position
+				errorStatus = moveServoPw(pan, pan->homePos, true);
 
 				if (errorStatus != 0) {
 					processError(errorStatus, "Could not move the " + pan->descr + " servo");
-					break;
-				} else {
-					//	Take a reading from each pan/tilt sensor in cm
-					areaScan[readingNr].ping = readParallaxPING(PING_FRONT_CENTER, true);
-					areaScan[readingNr].ir = readSharpGP2Y0A21YK0F(IR_FRONT_CENTER);
-					areaScan[readingNr].positionDeg = positionDeg;
-
-					if (HAVE_COLOR_SENSOR) {
-						areaScan[readingNr].color = readColorSensor();
-					}
-
-					if (HAVE_HEAT_SENSOR) {
-						areaScan[readingNr].heat = readHeatSensor();
-					}
-
-					readingNr += 1;
 				}
 			}
-
-			hasNotMoved = true;
 		}
 	}
 
@@ -1074,8 +1094,13 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 		nrAreaReadings = -1;
 		areaScanValid = false;
 	} else {
+		//	Robot has not moved
+		hasNotMoved = true;
+
 		//	Set the number of readings taken
 		nrAreaReadings = readingNr;
+
+		//	This area scan is valid
 		areaScanValid = true;
 	}
 
@@ -1405,6 +1430,10 @@ void setup (void) {
 	console.print(BUILD_BOARD);
 	console.println(F("."));
 
+	//	Delay for 10 seconds, before starting initialization
+	console.println();
+	wait(10, "initialization");
+
 	console.println();
 	console.println(F("Initializing Serial Ports.."));
 
@@ -1437,75 +1466,76 @@ void setup (void) {
 		} else {
 			//	Set the Gripper to home position
 			errorStatus = initGripper(&gripLift, &gripWrist, &gripGrab);
+		}
+
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Could not initialize the GRIPPER"));
+		} else {
+			//	Initialize the motors
+			errorStatus = initMotors(&leftMotorM1, &rightMotorM2);
+		}
+
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Could not initialize the motors"));
+		} else {
+			console.println();
+
+			//	Start the motors, forward
+			console.println(F("Starting the motors, forward"));
+			errorStatus = setMotorSpeed(&leftMotorM1, 500, false);
 
 			if (errorStatus != 0) {
-				processError(errorStatus, F("Could not initialize the GRIPPER"));
+				processError(errorStatus, F("Could not set speed for the LEFT motor"));
 			} else {
-				//	Initialize the motors
-				errorStatus = initMotors(&leftMotorM1, &rightMotorM2);
+				errorStatus = setMotorSpeed(&rightMotorM2, 500, true);
 
 				if (errorStatus != 0) {
-					processError(errorStatus, F("Could not initialize the motors"));
+					processError(errorStatus, F("Could not set speed for the RIGHT motor"));
 				} else {
-					console.println();
+					delay(2000);
 
-					//	Start the motors, forward
-					console.println(F("Starting the motors, forward"));
-					errorStatus = setMotorSpeed(&leftMotorM1, 500, false);
+					//	Stop the motors
+					errorStatus = stopMotors();
+				}
+			}
+
+			if (errorStatus != 0) {
+				processError(errorStatus, F("Runaway robot"));
+			} else {
+				//	Start the motors, reverse
+				console.println(F("Starting the motors, reverse"));
+				errorStatus = setMotorSpeed(&leftMotorM1, -500, false);
+
+				if (errorStatus != 0) {
+					processError(errorStatus, F("Could not set speed for the LEFT motor"));
+				} else {
+					errorStatus = setMotorSpeed(&rightMotorM2, -500, true);
 
 					if (errorStatus != 0) {
-						processError(errorStatus, F("Could not set speed for the LEFT motor"));
+						processError(errorStatus, F("Could not set speed for the RIGHT motor"));
 					} else {
-						errorStatus = setMotorSpeed(&rightMotorM2, 500, true);
+						delay(2000);
+
+						//	Stop the motors
+						errorStatus = stopMotors();
 
 						if (errorStatus != 0) {
-							processError(errorStatus, F("Could not set speed for the RIGHT motor"));
-						} else {
-							delay(5000);
-
-							//	Stop the motors
-							errorStatus = stopMotors();
-
-							if (errorStatus != 0) {
-								processError(errorStatus, F("Runaway robot"));
-							} else {
-								//	Start the motors, reverse
-								console.println(F("Starting the motors, reverse"));
-								errorStatus = setMotorSpeed(&leftMotorM1, -500, false);
-
-								if (errorStatus != 0) {
-									processError(errorStatus, F("Could not set speed for the LEFT motor"));
-								} else {
-									errorStatus = setMotorSpeed(&rightMotorM2, -500, true);
-
-									if (errorStatus != 0) {
-										processError(errorStatus, F("Could not set speed for the RIGHT motor"));
-									} else {
-										delay(5000);
-
-										//	Stop the motors
-										errorStatus = stopMotors();
-
-										if (errorStatus != 0) {
-											processError(errorStatus, F("Runaway robot"));
-										} else {
-											//	Scan the entire 180 degree range and take readings
-											console.println(F("Doing initial area scan.."));
-
-											errorStatus = scanArea(&pan, -90, 90, 10);
-
-											if (errorStatus != 0) {
-												processError(errorStatus, F("Could not complete the initial area scan"));
-											} else {
-												areaScanValid = true;
-											}
-										}
-									}
-								}
-							}
+							processError(errorStatus, F("Runaway robot"));
 						}
 					}
 				}
+			}
+		}
+
+		if (errorStatus == 0) {
+			//	Scan the entire 180 degree range and take readings
+			console.println(F("Doing initial area scan.."));
+			errorStatus = scanArea(&pan, -90, 90, 10);
+
+			if (errorStatus != 0) {
+				processError(errorStatus, F("Could not complete the initial area scan"));
+			} else {
+				areaScanValid = true;
 			}
 		}
 	}
