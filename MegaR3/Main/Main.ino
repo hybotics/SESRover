@@ -11,6 +11,7 @@
 						color based), course following, manipulation of the environment, and to
 						test code that will later be used on W.A.L.T.E.R. 2.0.
 
+					Change Log
 					-------------------------------------------------------------------------------
 					v0.0.1 ALPHA 19-Feb-2014:
 					Initial build from W.A.L.T.E.R. 2.0 code
@@ -84,6 +85,12 @@
 					-------------------------------------------------------------------------------
 					v0.2.2 21-Apr-2014:
 					Pulling in more initialization code from other files.
+
+					Added display code for date and time.
+
+					Added the calculatePitchRoll() routine, and modified the readIMU() routine to use it.
+
+					Adde noise (sound) making routines playTone(), makeSound(), and soundAlarm()
 					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -109,8 +116,8 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_L3GD20.h>
 #include <Hybotics_LSM303DLHC_Unified.h>
-#include <Hybotics_10DOF_Unified.h>
 #include <Hybotics_BMP180_Unified.h>
+#include <Hybotics_10DOF_Unified.h>
 #include <RTClib.h>
 
 /*
@@ -123,6 +130,7 @@
   Local includes
 */
 #include "Main.h"
+#include "Pitches.h"
 
 /********************************************************************/
 /*	Bitmaps for the drawBitMap() routines 							*/
@@ -304,7 +312,7 @@ BMSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
 //	Hardware Serial3: RESERVED
 BMSerial reserved(SERIAL_RESERVED_RX_PIN, SERIAL_RESERVED_TX_PIN);
 
-//	Hardware Serial1: RoboClaw 3x5 Motor Controller
+//	Software Serial: RoboClaw 2x5 Motor Controller
 RoboClaw roboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN, 10000, false);
 
 //	We only have one RoboClaw 2x5 right now
@@ -317,10 +325,13 @@ uint8_t roboClawAddress2 = ROBOCLAW_SERIAL_BASE_ADDR + 1;
 /*	Initialize Motors, Servos, and Servo Motors						*/
 /************************************************************/
 
+//	These are real DC motors
 Motor leftM1, rightM2;
 
+//	Standard R/C servos
 Servo gripLift, gripWrist, gripGrab, pan, tilt;
 
+//	Continuous rotation servo motors
 ServoMotor leftMotorM1 = {
 	SERVO_MOTOR_LEFT_PIN,
 	SERVO_MOTOR_LEFT_NAME,
@@ -537,17 +548,6 @@ String trimTrailingZeros (String st) {
 }
 
 /*
-	Call for help!
-
-	We're in a situation we can't get out of on our own.
-*/
-uint16_t callForHelp (void) {
-	uint16_t errorStatus = 0;
-
-	return errorStatus;
-}
-
-/*
     Process error conditions
 */
 void processError (byte errCode, String errMsg) {
@@ -605,6 +605,86 @@ void testDisplays (uint8_t totalDisplays) {
 	delay(2000);
 
 	clearDisplays();
+}
+
+/************************************************************/
+/*	Miscellaneous Robot Routines							*/
+/************************************************************/
+
+/*
+	Play a single tone on a Piezo buzzer
+*/
+uint16_t playTone(uint8_t tone, uint8_t volume, uint8_t durationMS) {
+	uint16_t errorStatus = 0;
+
+	return errorStatus;
+}
+
+/*
+	Play a sound - a sequence of pitches (or notes)
+*/
+uint16_t makeSound (uint8_t soundNr, uint8_t nrTimes, uint16_t durationMS) {
+	uint16_t errorStatus = 0;
+	uint8_t pitch = NOTE_C7;
+	uint8_t volume = 100;
+	uint8_t lengthMS;
+	uint8_t count = 0;
+
+	for (count = 0; count < nrTimes; count++) {
+		switch (soundNr) {
+			case 1:
+				playTone(pitch, volume, lengthMS);
+				delay(150);
+				playTone(pitch, volume, lengthMS);
+				break;
+
+			default:
+				errorStatus = 901;
+				processError(errorStatus, F("Invalid sound number"));
+				break;
+		}
+
+		delay(durationMS);
+	}
+
+	return errorStatus;
+}
+
+/*
+	Sound an alarm when we need assistance
+*/
+uint16_t soundAlarm (uint8_t count) {
+	uint16_t errorStatus = 0;
+	uint8_t alarmCount;
+
+	for (alarmCount = 0; alarmCount < count; alarmCount++) {
+		makeSound(1, count, 250);
+	}
+
+	return errorStatus;
+}
+
+/*
+	Call for help!
+
+	We're in a situation we can't get out of on our own.
+*/
+uint16_t callForHelp (void) {
+	uint16_t errorStatus = 0;
+	uint8_t count;
+
+	//	Send out a call for help every 20 seconds
+	for (count = 0; count < 20; count++) {
+		console.println(F("Help, help, help! I am stuck!"));
+		xbee.println(F("Help, help, help! I am stuck!"));
+
+		soundAlarm(5);
+
+		//	20 second delay between calls for help
+		delay(20000);
+	}
+
+	return errorStatus;
 }
 
 /************************************************************/
@@ -997,6 +1077,14 @@ void displayServo (Servo *servo) {
 /*	Sensor reading routines									*/
 /************************************************************/
 
+void calculatePitchRoll (InertialMeasurementUnit *imuData, sensors_event_t *accelEvent, sensors_event_t *compassEvent, sensors_vec_t *orientation) {
+	//	Calculate pitch and roll from the raw accelerometer data
+	imuData->pitchRollValid = imu.accelGetOrientation(accelEvent, orientation);
+
+	//	Calculate the heading using the raw magnetometer (compass)
+	imuData->headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, compassEvent, orientation);
+}
+
 ColorSensor readColorSensor (void) {
 	ColorSensor colorData;
 
@@ -1034,7 +1122,7 @@ HeatSensor readHeatSensor (void) {
 	For example, for Paris, France you can check the current mean
 		pressure and sea level at: http://bit.ly/16Au8ol
 */
-bmp180Data readBMP180 (void) {
+bmp180Data readBMP180Temp (void) {
 	bmp180Data tempData;
 
 	//	Get temperature and pressure data
@@ -1070,7 +1158,7 @@ l3gd20Data readL3GD20Gyro (void) {
 /*
 	Read the LSM303DLHC Accelerometer/Magnetometer (also part of the 10DOF IMU)
 */
-lsm303dlhcData readLSM303DLHC (void) {
+lsm303dlhcData readLSM303DLHCAccelMag (void) {
 	lsm303dlhcData acData;
 
 	//	Get accelerometer readings
@@ -1098,9 +1186,9 @@ lsm303dlhcData readLSM303DLHC (void) {
 InertialMeasurementUnit readIMU (void) {
 	InertialMeasurementUnit imuData;
 
-	imuData.accelCompassData = readLSM303DLHC();
+	imuData.accelCompassData = readLSM303DLHCAccelMag();
 	imuData.gyroData = readL3GD20Gyro();
-	imuData.tempData = readBMP180();
+	imuData.tempData = readBMP180Temp();
 
 //	console.println(F("Getting Orientation readings.."));
 
@@ -1447,7 +1535,7 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 			errorStatus = stopMotors();
 
 			if (errorStatus != 0) {
-				processError(errorStatus, F("Runaway robot"));
+				runAwayRobot(errorStatus);
 			} else {
 				readingNr = 0;
 
@@ -1573,7 +1661,6 @@ uint16_t stopMotors (void) {
 		if (errorStatus != 0) {
 			processError(errorStatus, "Could not set the speed for the " + rightMotorM2.descr + " motor");
 		} else {
-			delay(2000);
 			hasNotMoved = true;
 		}
 	}
@@ -1589,36 +1676,75 @@ uint16_t turnToFarthestObject (DistanceObject *distObj) {
 
 	if (distObj->farthestPosPING < 0) {
 		//	Turn to the right
-		setMotorSpeed(&leftMotorM1, 100, false);
-		setMotorSpeed(&rightMotorM2, -100, true);
-		delay(1000);
+		errorStatus = setMotorSpeed(&leftMotorM1, 100, false);
 
-		//	Start moving forward again
-		setMotorSpeed(&rightMotorM2, 100, true);
-	} else if (distObj->farthestPosPING > 0) {
-		//	Turn to the left
-		setMotorSpeed(&leftMotorM1, -100, false);
-		setMotorSpeed(&rightMotorM2, 100, true);
-		delay(1000);
+		if (errorStatus == 0) {
+			errorStatus = setMotorSpeed(&rightMotorM2, -100, true);
+			delay(1000);
+		}
 
-		//	Start moving forward again
-		setMotorSpeed(&leftMotorM1, 100, true);
-	} else {
-		//	Backup and scan again
-		setMotorSpeed(&leftMotorM1, -100, false);
-		setMotorSpeed(&rightMotorM2, -100, true);
-		delay(1000);
-
-		stopMotors();
-
-		errorStatus = scanArea(&pan, -90, 90, 10);
+		if (errorStatus == 0) {
+			//	Start moving forward again
+			errorStatus = setMotorSpeed(&rightMotorM2, 100, true);
+		}
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("There was a problem with the area scan"));
+			processError(errorStatus, F("There was a problem turning RIGHT"));
+		}
+	} else if (distObj->farthestPosPING > 0) {
+		//	Turn to the left
+		errorStatus = setMotorSpeed(&leftMotorM1, -100, false);
+
+		if (errorStatus == 0) {
+			errorStatus = setMotorSpeed(&rightMotorM2, 100, true);
+			delay(1000);
+		}
+
+		if (errorStatus == 0) {
+			//	Start moving forward again
+			errorStatus = setMotorSpeed(&leftMotorM1, 100, true);
+		}
+
+		if (errorStatus != 0) {
+			processError(errorStatus, F("There was a problem turning LEFT"));
+		}
+	} else {
+		//	Backup and scan again
+		errorStatus = setMotorSpeed(&leftMotorM1, -100, false);
+
+		if (errorStatus == 0) {
+			errorStatus = setMotorSpeed(&rightMotorM2, -100, true);
+			delay(1000);
+		} else {
+			processError(errorStatus, F("There was a problem backing up"));
+		}
+
+		if (errorStatus == 0) {
+			errorStatus = stopMotors();
+
+			if (errorStatus != 0) {
+				runAwayRobot(errorStatus);
+			} else {
+				errorStatus = scanArea(&pan, -90, 90, 10);
+
+				if (errorStatus != 0) {
+					processError(errorStatus, F("There was a problem with the area scan"));
+				}
+			}
 		}
 	}
 
 	return errorStatus;
+}
+
+/*
+	We can't stop the motors!
+*/
+void runAwayRobot (uint16_t errorStatus) {
+	processError(errorStatus, F("Runaway robot"));
+	xbee.println(F("Runaway robot!"));
+
+	callForHelp();
 }
 
 /********************************************************/
@@ -1948,7 +2074,7 @@ void setup (void) {
 
 	//	Delay for 10 seconds, before starting initialization
 	console.println();
-	wait(10, "initialization");
+	wait(7, "initialization");
 
 	console.println();
 	console.println(F("Initializing Serial Ports.."));
@@ -2030,6 +2156,10 @@ void setup (void) {
 
 					//	Stop the motors
 					errorStatus = stopMotors();
+
+					if (errorStatus != 0) {
+						runAwayRobot(errorStatus);
+					}					
 				}
 			}
 
@@ -2054,7 +2184,7 @@ void setup (void) {
 						errorStatus = stopMotors();
 
 						if (errorStatus != 0) {
-							processError(errorStatus, F("Runaway robot"));
+							runAwayRobot(errorStatus);
 						}
 					}
 				}
@@ -2084,18 +2214,17 @@ void loop (void) {
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
+	uint16_t displayInt;
+
 	//	Display related variables
 	boolean amTime;
 	uint8_t displayNr = 0, count = 0, readingNr = 0;
-	uint8_t areaClosestReadingPING = 0, areaFarthestReadingPING = 0;
-	uint8_t areaClosestReadingIR = 0, areaFarthestReadingIR = 0;
 	uint8_t currentHour = now.hour(), nrDisplays = 0;
 
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
 
 	DistanceObject distObject;
-	bmp180Data tempData;
 	ColorSensor colorData;
 	HeatSensor heatData;
 	InertialMeasurementUnit imuData;
@@ -2126,17 +2255,101 @@ void loop (void) {
 		firstLoop = false;
 	}
 
-	//	Start the motors!
+	//	Start our motors at a reasonable speed.
 	setMotorSpeed(&leftMotorM1, 100, false);
 	setMotorSpeed(&rightMotorM2, 100, true);
 
-	if (HAVE_10DOF_IMU) {
+	//  Display the date.
+	if (displayDate && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+		displayInt = (now.month() * 100) + now.day();  
+
+		//  Month and day
+		writeNumber(0, displayInt, 0, true);
+		matrix8x8.drawBitmap(0, 0, date_bmp, 8, 8, LED_ON);
+
+		sevenSeg[0].writeDisplay();
+		matrix8x8.writeDisplay();
+
+		delay(5000);
+
+		sevenSeg[0].clear();
+		matrix8x8.clear();  
+
+		//  Year
+		writeNumber(0, now.year(), 0, false);
+		matrix8x8.drawBitmap(0, 0, year_bmp, 8, 8, LED_ON);
+
+		sevenSeg[0].writeDisplay();
+		matrix8x8.writeDisplay();
+
+		delay(5000);
+    
+		dateMinuteCount = 0;
+		clearDisplays();
+	}
+  
+	//	Display the time
+	if (displayTime && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+		if (currentHour > 12) {
+			amTime = false;
+			currentHour = currentHour - 12;
+		} else {
+			amTime = true;
+		}
+	  
+		displayInt = (currentHour * 100) + now.minute();  
+
+		//  Display the current time on the 7 segment display
+		writeNumber(0, displayInt, 0, false);
+		sevenSeg[0].drawColon(true);
+	  
+		matrix8x8.clear();
+	  
+		if (amTime) {
+			matrix8x8.drawBitmap(0, 0, am_bmp, 8, 8, LED_ON);
+		} else {
+			matrix8x8.drawBitmap(0, 0, pm_bmp, 8, 8, LED_ON);
+		}
+	  
+		sevenSeg[0].writeDisplay();
+		matrix8x8.writeDisplay();
+	  
+		delay(5000);
+
+		timeMinuteCount = 0;
+		clearDisplays();
+	}
+
+	if (HAVE_LSM303DLHC_ACCEL || HAVE_L3GD20_GYRO || HAVE_BMP180_TEMP || HAVE_10DOF_IMU) {
 		imuData = readIMU();
+
+		//	Accelerometer and Magnetometer (Compass)
+		if (HAVE_LSM303DLHC_ACCEL || HAVE_10DOF_IMU) {
+			console.println(F("Processing the accelerometer and magnetometer readings"));
+			imuData.accelCompassData = readLSM303DLHCAccelMag();
+		}
+
+		//	Gyroscope
+		if (HAVE_L3GD20_GYRO || HAVE_10DOF_IMU) {
+			console.println(F("Processing the gyroscope readings"));
+			imuData.gyroData = readL3GD20Gyro();
+		}
+
+		//	Temperature, Pressure, and Altitude
+		if (HAVE_BMP180_TEMP || HAVE_10DOF_IMU) {
+			console.println(F("Processing the temperature readings"));
+			imuData.tempData = readBMP180Temp();
+		}
+
+		//	Orientation
+		if (HAVE_10DOF_IMU) {
+			calculatePitchRoll(&imuData, &imuData.accelCompassData.accelEvent, &imuData.accelCompassData.compassEvent, &imuData.orientation);
+		}
 
 		displayIMUData(&imuData);
 
 		/*
-			Put Accelerometer, Compass, and Orientation reactive behaviors HERE
+			Put Accelerometer, Compass, Gyro, and Orientation reactive behaviors HERE
 		*/
 	}
 
@@ -2164,9 +2377,13 @@ void loop (void) {
 		Put distance related reactive behaviors HERE
 	*/
 
-	//	Too close to an object, so stop and scan the area
-	if (ping[PING_FRONT_CENTER] < PING_MIN_DISTANCE_CM) {
-		stopMotors();
+	//	Let's see if we're too close to an object.. If so, stop and scan the area
+	if ((ping[PING_FRONT_CENTER] < PING_MIN_DISTANCE_CM) || (ir[IR_FRONT_CENTER] < IR_MIN_DISTANCE_CM)) {
+		errorStatus = stopMotors();
+
+		if (errorStatus != 0) {
+			runAwayRobot(errorStatus);
+		}
 
 		//	Scan the area for a clear path
 		errorStatus = scanArea(&pan, -90, 90, 10);
@@ -2178,9 +2395,12 @@ void loop (void) {
 
 		if (errorStatus != 0) {
 			processError(errorStatus, F("Could not complete a turn to the farthest object"));
-			stopMotors();
 
-			callForHelp();
+			errorStatus = stopMotors();
+
+			if (errorStatus != 0) {
+				runAwayRobot(errorStatus);
+			}
 		}
 	}
 
@@ -2207,35 +2427,33 @@ void loop (void) {
 
 	console.println();
 
-	if (tempData.temperatureValid) {
-		if (displayTemperature && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
-			//  Display the temperature in Fahrenheit
-			writeNumber(0, int(tempData.fahrenheit * 100), 2, false);
-			sevenSeg[0].writeDisplay();
+	if (imuData.tempData.temperatureValid && displayTemperature && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+		//  Display the temperature in Fahrenheit
+		writeNumber(0, int(imuData.tempData.fahrenheit * 100), 2, false);
+		sevenSeg[0].writeDisplay();
 
-			matrix8x8.clear();
-			matrix8x8.drawBitmap(0, 0, f_bmp, 8, 8, LED_ON);
-			matrix8x8.writeDisplay();
+		matrix8x8.clear();
+		matrix8x8.drawBitmap(0, 0, f_bmp, 8, 8, LED_ON);
+		matrix8x8.writeDisplay();
 
-			delay(5000);
+		delay(5000);
 
-			//  Display the temperature in Celsius
-			writeNumber(0, int(tempData.celsius * 100), 2, false);
-			sevenSeg[0].writeDisplay();
+		//  Display the temperature in Celsius
+		writeNumber(0, int(imuData.tempData.celsius * 100), 2, false);
+		sevenSeg[0].writeDisplay();
 
-			matrix8x8.clear();
-			matrix8x8.drawBitmap(0, 0, c_bmp, 8, 8, LED_ON);
-			matrix8x8.writeDisplay();
+		matrix8x8.clear();
+		matrix8x8.drawBitmap(0, 0, c_bmp, 8, 8, LED_ON);
+		matrix8x8.writeDisplay();
 
-			delay(5000);
-			temperatureMinuteCount = 0;
-			clearDisplays();
-		}
+		delay(5000);
+		temperatureMinuteCount = 0;
+		clearDisplays();
 	}
 
 	//	Count the minutes
 	if (currentMinute != lastMinute) {
-		if (DISPLAY_INFORMATION) {
+		if (DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
 			dateMinuteCount += 1;
 			temperatureMinuteCount += 1;
 			timeMinuteCount += 1;
@@ -2248,7 +2466,7 @@ void loop (void) {
 	/*
 		Update the information display control variables
 	*/
-	if (DISPLAY_INFORMATION) {
+	if (DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
 		displayDate = (dateMinuteCount == DISPLAY_DATE_FREQ_MIN);
 		displayTemperature = (temperatureMinuteCount == DISPLAY_TEMPERATURE_FREQ_MIN);
 		displayTime = (timeMinuteCount == DISPLAY_TIME_FREQ_MIN);

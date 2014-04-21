@@ -117,7 +117,7 @@
 //	Sharp GP2Y0A21YK0F IR sensors
 #define	MAX_NUMBER_IR					1
 #define	IR_PIN_BASE						6			//	Analog 6
-#define IR_MIN_DISTANCE_CM				12.0 		//	In CM, which is approximately 5"
+#define IR_MIN_DISTANCE_CM				14.0 		//	In CM, which is approximately 5"
 
 #define	IR_FRONT_CENTER					0
 #define	IR_BACK_CENTER					1
@@ -197,7 +197,7 @@
 #define	SERVO_MOTOR_RIGHT_PIN	        5
 #define SERVO_MOTOR_RIGHT_NAME			"Right Motor"
 #define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
-#define	SERVO_MOTOR_RIGHT_OFFSET		50
+#define	SERVO_MOTOR_RIGHT_OFFSET		-50
 #define SERVO_MOTOR_RIGHT_DIRECTION		true
 #define	SERVO_MOTOR_RIGHT_MIN			500
 #define	SERVO_MOTOR_RIGHT_MAX			2500
