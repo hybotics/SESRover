@@ -54,6 +54,8 @@
 #define	HAVE_L3GD20_GYRO				false
 #define	HAVE_BMP180_TEMP				false
 
+#define HAVE_7SEG_DISPLAYS				false
+
 /********************************************************/
 /*	Arduino Mega R3 (Arduino) Settings 					*/
 /********************************************************/
@@ -78,9 +80,9 @@
 #define	SERIAL_RESERVED_RX_PIN			15
 #define	SERIAL_RESERVED_TX_PIN			14
 
-#define	COLOR_SENSOR_LED				4
-#define	SPEAKER_OUT						5
-#define	HEARTBEAT_LED       	        13
+//	Software Serial: RoboClaw 2x5 Motor Controllers
+#define	SERIAL_ROBOCLAW_RX_PIN			21
+#define	SERIAL_ROBOCLAW_TX_PIN			20
 
 /*
 	Peripheral Settings - Displays, etc.
@@ -92,6 +94,11 @@
 
 #define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + MAX_NUMBER_7SEG_DISPLAYS
 
+//	Other Resources
+#define	COLOR_SENSOR_LED				53
+#define	SPEAKER_OUT						52
+#define	HEARTBEAT_LED       	        13
+
 /*
 	Sensor settings
 */
@@ -100,8 +107,8 @@
 
 //	Parallax PING Untrasonic sensors
 #define	MAX_NUMBER_PING					1
-#define	PING_PIN_BASE					24			//	Digital 10
-#define	PING_MIN_DISTANCE_CM			12.0 		//	In CM, which is approximately 5"
+#define	PING_PIN_BASE					24			//	Digital 24
+#define	PING_MIN_DISTANCE_CM			10.0 		//	In CM, which is approximately 4"
 
 #define	PING_FRONT_CENTER				0
 #define	PING_FRONT_LEFT					1
@@ -197,11 +204,14 @@
 /*********************************************************************/
 
 struct bmp180Data {
+	sensors_event_t tempEvent;
 	float seaLevelPressure;
 
 	bool temperatureValid;
 	float celsius;
 	float fahrenheit;
+
+	float altitude;
 };
 
 //	L3GD20 Gyroscope data
