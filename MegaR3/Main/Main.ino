@@ -75,6 +75,9 @@
 					v0.2.1 20-Apr-2014:
 					Fixed a bug in the scanArea() routine. The index variable needed to be an int,
 						because it can be negative. It was a uint16_6. The scanner works now!
+
+					Added a 10 second delay before initialization to allow getting set to shoot
+						videos or do other things before the robot moves.
 					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -108,7 +111,7 @@
 /*
   Local includes
 */
-#include "Motor_Servo_Test.h"
+#include "Main.h"
 
 /************************************************************/
 /*	Initialize global variables								*/

@@ -97,7 +97,7 @@
 /*
 	Local stuff
 */
-#include "Main.h"
+#include "Main_Old.h"
 #include "Pitches.h"
 
 /************************************************************/
