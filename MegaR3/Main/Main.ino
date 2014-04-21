@@ -1599,6 +1599,40 @@ uint16_t initGripper (Servo *lift, Servo *wrist, Servo *grab) {
 }
 
 /*
+	Initialize displays
+
+	Multiple 7 segment displays will be supported. The displays
+		should be on the breadboard, starting at the right with
+		the lowest addressed display and going to the left.
+
+*/
+void initDisplays (uint8_t totalDisplays) {
+	uint8_t nrDisp = 0;
+	uint8_t address;
+
+	console.println(F("Initializing Displays.."));
+
+	while (nrDisp < totalDisplays) {
+		sevenSeg[nrDisp] = Adafruit_7segment();
+		address = SEVEN_SEG_BASE_ADDR + nrDisp;
+		sevenSeg[nrDisp].begin(address);
+		sevenSeg[nrDisp].setBrightness(5);
+		sevenSeg[nrDisp].drawColon(false);
+
+		nrDisp += 1;
+	}
+
+	/*
+		The matrix display address is one higher than the last
+			seven segment display, based on the number of seven
+			seven segment displays that are configured.
+	*/
+	matrix8x8.begin(MATRIX_DISPLAY_ADDR);
+	matrix8x8.setBrightness(5);
+	matrix8x8.setRotation(3);
+}
+
+/*
 	Set the Pan/Tilt to Home Position
 */
 uint16_t initPanTilt (Servo *pan, Servo *tilt) {
@@ -1833,6 +1867,20 @@ void setup (void) {
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
 	digitalWrite(HEARTBEAT_LED, LOW);
+
+	//	Initialize and turn off the TCS34725 RGB Color sensor's LED
+	pinMode(COLOR_SENSOR_LED, OUTPUT);
+	digitalWrite(COLOR_SENSOR_LED, LOW);
+	delay(250);
+	digitalWrite(COLOR_SENSOR_LED, HIGH);
+	delay(250);
+	digitalWrite(COLOR_SENSOR_LED, LOW);
+
+	//	Initialize the displays
+	initDisplays(MAX_NUMBER_7SEG_DISPLAYS);
+
+	//	Test the displays
+	testDisplays(MAX_NUMBER_7SEG_DISPLAYS);
 
  	//  Initialize all servos
  	initServos();
