@@ -1002,6 +1002,21 @@ HeatSensor readHeatSensor (void) {
 
 /*
 	Read the BMP180 Temperature / Pressure sensor
+
+	Calculating altitude with reasonable accuracy requires pressure
+		sea level pressure for your position at the moment the data is
+		converted, as well as the ambient temperature in degress
+		celcius.  If you don't have these values, a 'generic' value of
+		1013.25 hPa can be used (defined as SENSORS_PRESSURE_SEALEVELHPA
+		in sensors.h), but this isn't ideal and will give variable
+		results from one day to the next.
+
+	You can usually find the current SLP value by looking at weather
+		websites or from environmental information centers near any major
+		airport.
+
+	For example, for Paris, France you can check the current mean
+		pressure and sea level at: http://bit.ly/16Au8ol
 */
 bmp180Data readBMP180 (void) {
 	bmp180Data tempData;
@@ -2026,23 +2041,6 @@ void loop (void) {
 	console.println();
 
 	if (tempData.temperatureValid) {
-		/* Calculating altitude with reasonable accuracy requires pressure    *
-		 * sea level pressure for your position at the moment the data is     *
-		 * converted, as well as the ambient temperature in degress           *
-		 * celcius.  If you don't have these values, a 'generic' value of     *
-		 * 1013.25 hPa can be used (defined as SENSORS_PRESSURE_SEALEVELHPA   *
-		 * in sensors.h), but this isn't ideal and will give variable         *
-		 * results from one day to the next.                                  *
-		 *                                                                    *
-		 * You can usually find the current SLP value by looking at weather   *
-		 * websites or from environmental information centers near any major  *
-		 * airport.                                                           *
-		 *                                                                    *
-		 * For example, for Paris, France you can check the current mean      *
-		 * pressure and sea level at: http://bit.ly/16Au8ol                   */
-
-		//  First we get the current temperature from the BMP180 in celsius and fahrenheit
-
 		if (displayTemperature && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
 			//  Display the temperature in Fahrenheit
 			writeNumber(0, int(tempData.fahrenheit * 100), 2, false);
