@@ -1,7 +1,7 @@
 /*
-	Program:      	SES Rover, Motor_Servo_Test.ino - Motor experimentation and test sketch
-	Date:         	20-Apr-2014
-	Version:      	0.2.1 ALPHA
+	Program:      	SES Rover, Main.ino - Main sketch
+	Date:         	21-Apr-2014
+	Version:      	0.2.2 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
 						Lynxmotion's SSC-32 Servo Controller,
@@ -81,6 +81,9 @@
 
 					Starting to pull code I've written from other files, for stuff like displays and
 						displaying data.
+					-------------------------------------------------------------------------------
+					v0.2.2 21-Apr-2014:
+					Pulling in more initialization code from other files.
 					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -311,8 +314,10 @@ uint8_t roboClawAddress1 = ROBOCLAW_SERIAL_BASE_ADDR;
 uint8_t roboClawAddress2 = ROBOCLAW_SERIAL_BASE_ADDR + 1;
 
 /************************************************************/
-/*	Initialize Servos and Servo Motors						*/
+/*	Initialize Motors, Servos, and Servo Motors						*/
 /************************************************************/
+
+Motor leftM1, rightM2;
 
 Servo gripLift, gripWrist, gripGrab, pan, tilt;
 
@@ -529,6 +534,17 @@ String trimTrailingZeros (String st) {
   }
 
   return newStr;
+}
+
+/*
+	Call for help!
+
+	We're in a situation we can't get out of on our own.
+*/
+uint16_t callForHelp (void) {
+	uint16_t errorStatus = 0;
+
+	return errorStatus;
 }
 
 /*
@@ -1565,6 +1581,46 @@ uint16_t stopMotors (void) {
 	return errorStatus;
 }
 
+/*
+	Turn towards the farthest detected object
+*/
+uint16_t turnToFarthestObject (DistanceObject *distObj) {
+	uint16_t errorStatus = 0;
+
+	if (distObj->farthestPosPING < 0) {
+		//	Turn to the right
+		setMotorSpeed(&leftMotorM1, 100, false);
+		setMotorSpeed(&rightMotorM2, -100, true);
+		delay(1000);
+
+		//	Start moving forward again
+		setMotorSpeed(&rightMotorM2, 100, true);
+	} else if (distObj->farthestPosPING > 0) {
+		//	Turn to the left
+		setMotorSpeed(&leftMotorM1, -100, false);
+		setMotorSpeed(&rightMotorM2, 100, true);
+		delay(1000);
+
+		//	Start moving forward again
+		setMotorSpeed(&leftMotorM1, 100, true);
+	} else {
+		//	Backup and scan again
+		setMotorSpeed(&leftMotorM1, -100, false);
+		setMotorSpeed(&rightMotorM2, -100, true);
+		delay(1000);
+
+		stopMotors();
+
+		errorStatus = scanArea(&pan, -90, 90, 10);
+
+		if (errorStatus != 0) {
+			processError(errorStatus, F("There was a problem with the area scan"));
+		}
+	}
+
+	return errorStatus;
+}
+
 /********************************************************/
 /*	Initialization routines								*/
 /********************************************************/
@@ -1685,6 +1741,47 @@ uint16_t initMotors (ServoMotor *leftM1, ServoMotor *rightM2) {
 	}
 
 	return errorStatus;
+}
+
+/*
+	Initialize the RoboClaw 2x5 motor controller
+*/
+void initRoboClaw (uint8_t address, uint16_t bps, Motor *leftM1, Motor *rightM2) {
+	console.print(F("Initializing the RoboClaw 2x5 Motor Controller at address "));
+	console.print(address, HEX);
+	console.print(F(", for "));
+	console.print(bps);
+	console.println(F(" Bps communication."));
+
+	roboClaw.begin(bps);
+
+	//	Set the RoboClaw motor constants
+	roboClaw.SetM1VelocityPID(address, ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+	roboClaw.SetM2VelocityPID(address, ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+
+	//	For Packet Serial modes
+	leftM1->descr = ROBOCLAW_MOTOR_LEFT_NAME;
+	leftM1->encoder = 0;
+	leftM1->encoderStatus = 0;
+	leftM1->encoderValid = false;
+	leftM1->mspeed = 0;
+	leftM1->speedStatus = 0;
+	leftM1->speedValid = false;
+	leftM1->forward = true;
+	leftM1->distance = 0;
+	leftM1->distanceValid = false;		    
+
+	//	For Packet Serial modes
+	rightM2->descr = ROBOCLAW_MOTOR_RIGHT_NAME;
+	rightM2->encoder = 0;
+	rightM2->encoderStatus = 0;
+	rightM2->encoderValid = false;
+	rightM2->mspeed = 0;
+	rightM2->speedStatus = 0;
+	rightM2->speedValid = false;
+	rightM2->forward = true;
+	rightM2->distance = 0;
+	rightM2->distanceValid = false;		    
 }
 
 /*
@@ -1868,19 +1965,23 @@ void setup (void) {
 	pinMode(HEARTBEAT_LED, OUTPUT);
 	digitalWrite(HEARTBEAT_LED, LOW);
 
-	//	Initialize and turn off the TCS34725 RGB Color sensor's LED
-	pinMode(COLOR_SENSOR_LED, OUTPUT);
-	digitalWrite(COLOR_SENSOR_LED, LOW);
-	delay(250);
-	digitalWrite(COLOR_SENSOR_LED, HIGH);
-	delay(250);
-	digitalWrite(COLOR_SENSOR_LED, LOW);
+	if (HAVE_COLOR_SENSOR) {
+		//	Initialize and turn off the TCS34725 RGB Color sensor's LED
+		pinMode(COLOR_SENSOR_LED, OUTPUT);
+		digitalWrite(COLOR_SENSOR_LED, LOW);
+		delay(250);
+		digitalWrite(COLOR_SENSOR_LED, HIGH);
+		delay(250);
+		digitalWrite(COLOR_SENSOR_LED, LOW);
+	}
 
-	//	Initialize the displays
-	initDisplays(MAX_NUMBER_7SEG_DISPLAYS);
+	if (HAVE_7SEG_DISPLAYS) {
+		//	Initialize the displays
+		initDisplays(MAX_NUMBER_7SEG_DISPLAYS);
 
-	//	Test the displays
-	testDisplays(MAX_NUMBER_7SEG_DISPLAYS);
+		//	Test the displays
+		testDisplays(MAX_NUMBER_7SEG_DISPLAYS);
+	}
 
  	//  Initialize all servos
  	initServos();
@@ -1925,7 +2026,7 @@ void setup (void) {
 				if (errorStatus != 0) {
 					processError(errorStatus, F("Could not set speed for the RIGHT motor"));
 				} else {
-					delay(2000);
+					delay(3000);
 
 					//	Stop the motors
 					errorStatus = stopMotors();
@@ -1947,7 +2048,7 @@ void setup (void) {
 					if (errorStatus != 0) {
 						processError(errorStatus, F("Could not set speed for the RIGHT motor"));
 					} else {
-						delay(2000);
+						delay(3000);
 
 						//	Stop the motors
 						errorStatus = stopMotors();
@@ -2025,6 +2126,10 @@ void loop (void) {
 		firstLoop = false;
 	}
 
+	//	Start the motors!
+	setMotorSpeed(&leftMotorM1, 100, false);
+	setMotorSpeed(&rightMotorM2, 100, true);
+
 	if (HAVE_10DOF_IMU) {
 		imuData = readIMU();
 
@@ -2059,10 +2164,24 @@ void loop (void) {
 		Put distance related reactive behaviors HERE
 	*/
 
+	//	Too close to an object, so stop and scan the area
 	if (ping[PING_FRONT_CENTER] < PING_MIN_DISTANCE_CM) {
 		stopMotors();
+
+		//	Scan the area for a clear path
 		errorStatus = scanArea(&pan, -90, 90, 10);
 
+		//	Find the closest and farthest objects
+		distObject = findDistanceObjects();
+
+		errorStatus = turnToFarthestObject(&distObject);
+
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Could not complete a turn to the farthest object"));
+			stopMotors();
+
+			callForHelp();
+		}
 	}
 
 	//	Read the TCS34725 RGB color sensor, if we have it

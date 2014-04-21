@@ -1,7 +1,7 @@
 /*
-	Program:   SES Rover, Main navigation and reactive behaviors sketch
-	Date:      20-Apr-2014
-	Version:   0.2.1 ALPHA
+	Program:   SES Rover, Main sketch header file
+	Date:      21-Apr-2014
+	Version:   0.2.2 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
 					Lynxmotion's SSC-32 Servo Controller,
@@ -132,6 +132,9 @@
 #define	ROBOCLAW_KI						0.5
 #define	ROBOCLAW_KD						0.25
 #define	ROBOCLAW_QPPS					44000
+
+#define ROBOCLAW_MOTOR_LEFT_NAME		"Left"
+#define ROBOCLAW_MOTOR_RIGHT_NAME		"Right"
 
 /*********************************************************
 	Lynxmotion SSC-32 Servo Controller Settings
