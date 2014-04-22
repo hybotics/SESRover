@@ -634,6 +634,9 @@ void testDisplays (uint8_t totalDisplays) {
       C             523 Hz          1912    956
 
       (cleft) 2005 D. Cuartielles for K3
+
+	The original code, this routine is based on, was found at:
+		http://www.arduino.cc/en/Tutorial/PlayMelody
 */
 void playMelody(byte melody[]) {
   byte names[] = { 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' };  
