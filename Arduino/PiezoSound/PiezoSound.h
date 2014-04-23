@@ -1,7 +1,7 @@
 /*
-	Program:   SES Rover, Main sketch header file
-	Date:      21-Apr-2014
-	Version:   0.2.2 ALPHA
+	Program:   SES Rover, PiezoSound header file
+	Date:      23-Apr-2014
+	Version:   0.0.1 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
 					Lynxmotion's SSC-32 Servo Controller,

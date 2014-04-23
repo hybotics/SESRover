@@ -1,3 +1,17 @@
+/*
+	Program:   SES Rover, PiezoSound sketch
+	Date:      23-Apr-2014
+	Version:   0.0.1 ALPHA
+
+	Platform:	Arduino Duemilanove.
+
+	Purpose:	To experiment with sound generation and configurations,
+					using piezo buzzers.
+
+	Comments:	Credit is given, where applicable, for code I did not originate.
+
+				Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
+*/
 #include "PiezoSound.h"
 
 /************************************************************/
@@ -140,4 +154,12 @@ uint16_t callForHelp (void) {
 	}
 
 	return errorStatus;
+}
+
+void setup (void) {
+
+}
+
+void loop (void) {
+
 }
