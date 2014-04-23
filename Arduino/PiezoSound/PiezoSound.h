@@ -16,8 +16,8 @@
 				Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 
-#ifndef	__MAIN_H__
-#define	__MAIN_H__
+#ifndef	__PIEZOSOUND_H__
+#define	__PIEZOSOUND_H__
 
 /*********************************************************/
 /*	General settings 									 */
@@ -68,21 +68,21 @@
 	Serial ports
 */
 
-//	Hardware Serial0: Console and Debug port
+//	Hardware Serial: Console and Debug port
 #define	SERIAL_CONSOLE_RX_PIN			0
 #define	SERIAL_CONSOLE_TX_PIN			1
 
-//	Hardware Serial1: Lynxmotion SSC-32 Servo Controller
-#define	SERIAL_SSC32_RX_PIN				19
-#define	SERIAL_SSC32_TX_PIN				18
+//	Software Serial: Lynxmotion SSC-32 Servo Controller
+#define	SERIAL_SSC32_RX_PIN				3
+#define	SERIAL_SSC32_TX_PIN				2
 
-//	Hardware Serial2: XBee (ZigBee) Mesh Wireless adapter
-#define	SERIAL_XBEE_RX_PIN				17
-#define	SERIAL_XBEE_TX_PIN				16
+//	Software Serial: XBee (ZigBee) Mesh Wireless adapter
+#define	SERIAL_XBEE_RX_PIN				5
+#define	SERIAL_XBEE_TX_PIN				4
 
-//	Hardware Serial3: RESERVED
-#define	SERIAL_RESERVED_RX_PIN			15
-#define	SERIAL_RESERVED_TX_PIN			14
+//	Software Serial: RESERVED
+#define	SERIAL_RESERVED_RX_PIN			7
+#define	SERIAL_RESERVED_TX_PIN			6
 
 //	Software Serial: RoboClaw 2x5 Motor Controllers
 #define	SERIAL_ROBOCLAW_RX_PIN			21
@@ -101,8 +101,8 @@
 /*
 	Other Resources
 */
-#define	COLOR_SENSOR_LED				53
-#define	SPEAKER_OUT						44 			//	Digital 44 - 46, have PWM capability
+#define	COLOR_SENSOR_LED				12
+#define	SPEAKER_OUT						11 			//	Digital 9 - 11, have PWM capability
 #define	HEARTBEAT_LED       	        13
 
 /*
@@ -249,148 +249,5 @@
 /**********************************************************************
 	Structs for data we store about various onboard devices
 /*********************************************************************/
-
-struct bmp180Data {
-	sensors_event_t tempEvent;
-	float seaLevelPressure;
-
-	bool temperatureValid;
-	float celsius;
-	float fahrenheit;
-
-	float altitude;
-};
-
-//	L3GD20 Gyroscope data
-struct l3gd20Data {
-	int X;
-	int Y;
-	int Z;
-};
-
-//	LSM303DLHC Accelerometer/Magnetometer (Compass) data
-struct lsm303dlhcData {
-	sensors_event_t accelEvent;
-	sensors_event_t compassEvent;
-
-	float accelX, accelY, accelZ;
-	float compassX, compassY, compassZ;
-};
-
-//	The 10DOF Inertial Measurement Unit (IMU)
-struct InertialMeasurementUnit {
-	bmp180Data tempData;
-	lsm303dlhcData accelCompassData;
-	l3gd20Data gyroData;
-
-	sensors_vec_t orientation;
-
-	bool pitchRollValid;
-	bool headingValid;
-};
-
-//	TC S34725 RGB Color Sensor
-struct ColorSensor {
-	uint16_t colorTempC;
-	uint16_t lux;
-
-	uint16_t red;
-	uint16_t green;
-	uint16_t blue;
-
-	uint16_t c;
-};
-
-//	TMP006 Heat Sensor
-struct HeatSensor {
-	float dieTempC;
-	float objectTempC;
-};
-
-//	Holds are closest and farthest object distance readinga
-struct DistanceObject {
-	uint8_t closestPING;
-	uint16_t closestPosPING;
-
-	uint8_t closestIR;
-	uint16_t closestPosIR;
-
-	uint8_t farthestPING;
-	uint16_t farthestPosPING;
-
-	uint8_t farthestIR;
-	uint16_t farthestPosIR;
-};
-
-//	For areaScan() readings
-struct AreaScanReading {
-	float ir;
-	uint16_t ping;
-
-	ColorSensor color;
-	HeatSensor heat;
-
-	int positionDeg;
-};
-
-//	Continuous Rotation Servos - R/C PWM control mode parameters
-struct ServoMotor {
-	uint8_t pin;
-	String descr;
-
-	int offset;
-	int8_t speedAdjustment;
-	bool forward;
-	uint16_t neutral;
-	uint16_t minPulse;
-	uint16_t maxPulse;
-
-	uint16_t pulse;
-
-	uint16_t error;
-};
-
-//	DC Motors - Packet Serial control mode parameters
-struct Motor {
-	String descr;
-
-	uint32_t encoder;
-	uint8_t encoderStatus;
-	bool encoderValid;
-
-	uint32_t mspeed;
-	uint8_t speedStatus;
-	bool speedValid;
-
-	bool forward;
-
-	long distance;
-	bool distanceValid;
-
-	uint16_t error;
-};
-
-//	Standard R/C Servos
-struct Servo {
-	uint8_t pin;
-	String descr;
-
-	int offset;
-	uint16_t homePos;
-	uint16_t msPulse;
-	int angle;
-	uint16_t minPulse;
-	uint16_t maxPulse;
-	uint8_t maxDegrees;
-
-	uint16_t error;
-};
-
-enum MotorLocation {
-	LEFT,
-	RIGHT,
-	FRONT,
-	BACK
-};
 
 #endif

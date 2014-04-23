@@ -12,7 +12,48 @@
 
 				Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
+
+#include <BMSerial.h>
+
 #include "PiezoSound.h"
+#include "Pitches.h"
+
+/************************************************************/
+/*	Initialize global variables								*/
+/************************************************************/
+
+//	This will always have the name of the last routine executed before an error
+String lastRoutine;
+
+/*
+	Setup all our serial devices
+*/
+
+//	Hardware Serial0: Console and debug (replaces Serial.* routines)
+BMSerial console(SERIAL_CONSOLE_RX_PIN, SERIAL_CONSOLE_TX_PIN);
+
+//	Hardware Serial1: Lynxmotion SSC-32 Servo Controller
+BMSerial ssc32(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
+
+//	Hardware Serial2: XBee Mesh Wireless
+BMSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
+
+/************************************************************/
+/*	Utility routines										*/
+/************************************************************/
+
+/*
+    Process error conditions
+*/
+void processError (byte errCode, String errMsg) {
+	console.print(F("Error in routine '"));
+	console.print(lastRoutine);
+	console.print(F("', Code: "));
+	console.print(errCode);
+	console.print(F(", Message: "));
+	console.print(errMsg);
+	console.println(F("!"));
+}
 
 /************************************************************/
 /*	Sound Generation routines								*/
