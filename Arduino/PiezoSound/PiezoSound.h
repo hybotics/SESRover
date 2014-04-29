@@ -25,9 +25,9 @@
 
 #define	I2C_ADDRESS						0x50
 
-#define	BUILD_VERSION					"0.2.3"
-#define	BUILD_DATE 						"22-Apr-2014"
-#define	BUILD_BOARD						"Arduino Mega 2560 R3, with Lynxmotion's SSC-32"
+#define	BUILD_VERSION					"0.0.1"
+#define	BUILD_DATE 						"24-Apr-2014"
+#define	BUILD_BOARD						"Arduino Duemilonve"
 
 #define	LOOP_DELAY_SECONDS				10
 
@@ -101,8 +101,8 @@
 /*
 	Other Resources
 */
-#define	COLOR_SENSOR_LED				12
 #define	SPEAKER_OUT						11 			//	Digital 9 - 11, have PWM capability
+#define	COLOR_SENSOR_LED				12
 #define	HEARTBEAT_LED       	        13
 
 /*
@@ -146,7 +146,7 @@
 *********************************************************/
 
 //	These are to support the playMelody() routine, as it is now.
-#define NOTE_NAMES						{ 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' }
+#define TONE_NAMES						{ 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' }
 #define TONE_FREQUENCIES				{ 1915, 1700, 1519, 1432, 1275, 1136, 1014, 956 }
 #define MAX_COUNT						24
 

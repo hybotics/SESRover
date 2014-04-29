@@ -1,7 +1,7 @@
 /*
 	Program:   SES Rover, PiezoSound sketch
-	Date:      23-Apr-2014
-	Version:   0.0.1 ALPHA
+	Date:      26-Apr-2014
+	Version:   0.0.2 ALPHA
 
 	Platform:	Arduino Duemilanove.
 
@@ -13,10 +13,18 @@
 				Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 
+#include <toneAC.h>
+
 #include <BMSerial.h>
 
 #include "PiezoSound.h"
 #include "Pitches.h"
+
+/*
+	NOTE: We MUST use pins 11 and 12 for the Piezo buzzer,
+		because we are using the toneAC library to generate
+		tones.
+*/
 
 /************************************************************/
 /*	Initialize global variables								*/
@@ -87,14 +95,16 @@ void processError (byte errCode, String errMsg) {
 		http://www.arduino.cc/en/Tutorial/PlayMelody
 */
 void playMelody(byte melody[]) {
-  byte names[] = { 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' };  
-  int tones[] = { 1915, 1700, 1519, 1432, 1275, 1136, 1014, 956 };
+  byte toneName[] = { 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' };  
+  int toneHigh[] = { 1915, 1700, 1519, 1432, 1275, 1136, 1014, 956 };
+  int toneFreq[] = { 261, 294, 329, 349, 392, 440, 493, 523 };
 
   int count = 0;
   int count2 = 0;
   int count3 = 0;
 
   int statePin = LOW;
+  int index = 0;
 
   analogWrite(SPEAKER_OUT, 0);    
 
@@ -103,16 +113,18 @@ void playMelody(byte melody[]) {
 
     digitalWrite(HEARTBEAT_LED, statePin);
 
-    for (count3 = 0; count3 <= (melody[count * 2] - 48) * 30; count3++) {
-      for (count2=0; count2 < 8; count2++) {
-        if (names[count2] == melody[count * 2 + 1]) {      
-          analogWrite(SPEAKER_OUT, 500);
-          delayMicroseconds(tones[count2]);
-          analogWrite(SPEAKER_OUT, 0);
-          delayMicroseconds(tones[count2]);
-        }
+    index = count * 2 + 1;
 
-        if (melody[count * 2 + 1] == 'p') {
+    for (count3 = 0; count3 <= (melody[index] - 48) * 30; count3++) {
+      for (count2 = 0; count2 < 8; count2++) {
+
+        if (toneName[index] == melody[index]) {      
+          playTone(toneFreq[index], 100);
+//          analogWrite(SPEAKER_OUT, 500);
+//          delayMicroseconds(toneHigh[index]);
+//          analogWrite(SPEAKER_OUT, 0);
+//          delayMicroseconds(toneHigh[index]);
+        } else if (melody[index] == 'p') {
           //  Make a pause of a certain size
           analogWrite(SPEAKER_OUT, 0);
           delayMicroseconds(500);
@@ -121,13 +133,13 @@ void playMelody(byte melody[]) {
     }
   }
 }
+
 /*
 	Play a single tone on a Piezo buzzer
 */
-uint16_t playTone(uint8_t tone, uint8_t volume, uint8_t durationMS) {
-	uint16_t errorStatus = 0;
-
-	return errorStatus;
+void playTone (unsigned long freqHz, unsigned long durationMS) {
+	toneAC(freqHz, 10, durationMS);
+	noToneAC();
 }
 
 /*
@@ -143,9 +155,9 @@ uint16_t makeSound (uint8_t soundNr, uint8_t nrTimes, uint16_t durationMS) {
 	for (count = 0; count < nrTimes; count++) {
 		switch (soundNr) {
 			case 1:
-				playTone(pitch, volume, lengthMS);
+				playTone(pitch, lengthMS);
 				delay(150);
-				playTone(pitch, volume, lengthMS);
+				playTone(pitch, lengthMS);
 				break;
 
 			default:
@@ -198,7 +210,26 @@ uint16_t callForHelp (void) {
 }
 
 void setup (void) {
+	byte song[] = "2d2a1f2c2d2a2d2c2f2d2a2c2d2a1f2c2d2a2a2g2p8p8p8p";
 
+	console.begin(115200);
+
+	console.print(F("PiezoSound, version "));
+	console.print(BUILD_VERSION);
+	console.print(F(" on "));
+	console.println(BUILD_DATE);
+	console.print(F("     for the "));
+	console.print(BUILD_BOARD);
+	console.println(F("."));
+	console.print("");
+
+	pinMode(HEARTBEAT_LED, OUTPUT);
+	digitalWrite(HEARTBEAT_LED, LOW);
+
+	pinMode(SPEAKER_OUT, OUTPUT);
+	digitalWrite(SPEAKER_OUT, LOW);
+
+	playMelody(song);
 }
 
 void loop (void) {

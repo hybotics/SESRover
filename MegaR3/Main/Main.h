@@ -1,7 +1,7 @@
 /*
 	Program:   SES Rover, Main sketch header file
-	Date:      21-Apr-2014
-	Version:   0.2.2 ALPHA
+	Date:      28-Apr-2014
+	Version:   0.2.5 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
 					Lynxmotion's SSC-32 Servo Controller,
@@ -25,8 +25,8 @@
 
 #define	I2C_ADDRESS						0x50
 
-#define	BUILD_VERSION					"0.2.2"
-#define	BUILD_DATE 						"21-Apr-2014"
+#define	BUILD_VERSION					"0.2.3"
+#define	BUILD_DATE 						"22-Apr-2014"
 #define	BUILD_BOARD						"Arduino Mega 2560 R3, with Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
@@ -56,7 +56,9 @@
 #define	HAVE_L3GD20_GYRO				false
 #define	HAVE_BMP180_TEMP				false
 
-#define HAVE_7SEG_DISPLAYS				false
+#define HAVE_7SEGMENT_DISPLAYS			false
+
+#define	DOING_MOTOR_CALIBRATION			true
 
 /*********************************************************
 	Arduino Mega R3 (Arduino) Settings
@@ -99,9 +101,10 @@
 /*
 	Other Resources
 */
-#define	COLOR_SENSOR_LED				53
-#define	SPEAKER_OUT						44 			//	Digital 44 - 46, have PWM capability
+#define SPEAKER_OUT_ONE					11
+#define	SPEAKER_OUT_TWO					12
 #define	HEARTBEAT_LED       	        13
+#define	COLOR_SENSOR_LED				53
 
 /*
 	Sensor settings
@@ -194,24 +197,52 @@
 	There isn't anything on pin 3
 */
 
-#define	SERVO_MOTOR_NEUTRAL				0
 #define	SERVO_MOTOR_MIN_SPEED			-1000
 #define	SERVO_MOTOR_MAX_SPEED			1000
 
+//	Servo Motor gears (speeds)
+#define	SERVO_MOTOR_NEUTRAL				0
+
+#define	SERVO_MOTOR_GEAR_01				50
+#define	SERVO_MOTOR_GEAR_02				100
+#define	SERVO_MOTOR_GEAR_03				200
+#define	SERVO_MOTOR_GEAR_04				300
+#define	SERVO_MOTOR_GEAR_05				400
+#define	SERVO_MOTOR_GEAR_06				500
+#define	SERVO_MOTOR_GEAR_07				600
+#define	SERVO_MOTOR_GEAR_08				700
+#define	SERVO_MOTOR_GEAR_09				800
+#define	SERVO_MOTOR_GEAR_10				975
+
+#define	SERVO_MOTOR_REVERSE_01			-50
+#define	SERVO_MOTOR_REVERSE_02			-100
+#define	SERVO_MOTOR_REVERSE_03			-200
+#define	SERVO_MOTOR_REVERSE_04			-300
+#define	SERVO_MOTOR_REVERSE_05			-400
+#define	SERVO_MOTOR_REVERSE_06			-500
+#define	SERVO_MOTOR_REVERSE_07			-600
+#define	SERVO_MOTOR_REVERSE_08			-700
+#define	SERVO_MOTOR_REVERSE_09			-800
+#define	SERVO_MOTOR_REVERSE_10			-975
+
+//	Left Servo Motor assignments
 #define	SERVO_MOTOR_LEFT_PIN			4
 #define SERVO_MOTOR_LEFT_NAME			"Left Servo Motor"
 #define	SERVO_MOTOR_LEFT_NEUTRAL		SERVO_MOTOR_NEUTRAL
 
 #define	SERVO_MOTOR_LEFT_OFFSET	        0
+#define	SERVO_MOTOR_LEFT_SPEED_ADJ		10
 #define	SERVO_MOTOR_LEFT_DIRECTION		false
 #define	SERVO_MOTOR_LEFT_MIN			500
 #define	SERVO_MOTOR_LEFT_MAX			2500
 
+//	Right Servo Motor assignments
 #define	SERVO_MOTOR_RIGHT_PIN	        5
 #define SERVO_MOTOR_RIGHT_NAME			"Right Servo Motor"
 #define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
 
-#define	SERVO_MOTOR_RIGHT_OFFSET		0
+#define	SERVO_MOTOR_RIGHT_OFFSET		25
+#define	SERVO_MOTOR_RIGHT_SPEED_ADJ		0
 #define SERVO_MOTOR_RIGHT_DIRECTION		true
 #define	SERVO_MOTOR_RIGHT_MIN			500
 #define	SERVO_MOTOR_RIGHT_MAX			2500
@@ -309,6 +340,7 @@ struct ServoMotor {
 	String descr;
 
 	int offset;
+	int8_t speedAdjustment;
 	bool forward;
 	uint16_t neutral;
 	uint16_t minPulse;

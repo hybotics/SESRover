@@ -1,7 +1,7 @@
 /*
 	Program:      	SES Rover, Main.ino - Main sketch
-	Date:         	21-Apr-2014
-	Version:      	0.2.2 ALPHA
+	Date:         	28-Apr-2014
+	Version:      	0.2.5 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
 						Lynxmotion's SSC-32 Servo Controller,
@@ -92,6 +92,18 @@
 
 					Adde noise (sound) making routines playTone(), makeSound(), and soundAlarm()
 					-------------------------------------------------------------------------------
+					v0.2.3 22-Apr-2014:
+					Added motor calibration and testing code.
+
+					Added ten speed 'gear' constants to the header file, for forward and reverse speeds
+					-------------------------------------------------------------------------------
+					v0.2.4 26-Apr-2014:
+					Decided on using the toneAC library for generating sounds. This requires the use of
+						pins 11 and 12 for the Piezo Buzzer.
+					-------------------------------------------------------------------------------
+					v0.2.5 ALPHA
+					Added new sound routines that use the toneAC library. Removed old routines.
+					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
 						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
@@ -106,6 +118,18 @@
 	Comments:		Credit is given, where applicable, for code I did not originate.
 */
 #include <Wire.h>
+
+/*
+	The toneAC library requires the speaker/piezo buzzer
+		to be on the following pins:
+
+		Pins 9 & 10 - ATmega328, ATmega128, ATmega640, ATmega8, Uno, Leonardo, etc.
+		Pins 11 & 12 - ATmega2560/2561, ATmega1280/1281, Mega
+		Ping 12 & 13 - ATmega1284P, ATmega644
+		Pins 14 & 15 - Teensy 2.0
+		Pins 25 & 26 - Teensy++ 2.0
+*/
+#include <toneAC.h>
 
 #include <BMSerial.h>
 #include <RoboClaw.h>
@@ -336,6 +360,7 @@ ServoMotor leftMotorM1 = {
 	SERVO_MOTOR_LEFT_PIN,
 	SERVO_MOTOR_LEFT_NAME,
 	SERVO_MOTOR_LEFT_OFFSET,
+	SERVO_MOTOR_LEFT_SPEED_ADJ,
 	SERVO_MOTOR_LEFT_DIRECTION,
 	SERVO_MOTOR_LEFT_NEUTRAL,
 	SERVO_MOTOR_LEFT_MIN,
@@ -348,6 +373,7 @@ ServoMotor rightMotorM2 = {
 	SERVO_MOTOR_RIGHT_PIN,
 	SERVO_MOTOR_RIGHT_NAME,
 	SERVO_MOTOR_RIGHT_OFFSET,
+	SERVO_MOTOR_RIGHT_SPEED_ADJ,
 	SERVO_MOTOR_RIGHT_DIRECTION,
 	SERVO_MOTOR_RIGHT_NEUTRAL,
 	SERVO_MOTOR_RIGHT_MIN,
@@ -608,105 +634,68 @@ void testDisplays (uint8_t totalDisplays) {
 }
 
 /************************************************************/
-/*	Miscellaneous Robot Routines							*/
+/*	Sound Generation routines								*/
 /************************************************************/
 
+int r2d2[] = { 16, NOTE_A7, NOTE_G7, NOTE_E7, NOTE_C7, NOTE_D7, NOTE_B7, NOTE_F7, NOTE_C8, NOTE_A7, NOTE_G7, NOTE_E7, NOTE_C7, NOTE_D7, NOTE_B7, NOTE_F7, NOTE_C8 };
+int tones[] = { 20, NOTE_C4, NOTE_CS4, NOTE_D4, NOTE_DS4, NOTE_E4, NOTE_F4, NOTE_FS4, NOTE_G4, NOTE_GS4, NOTE_A4, NOTE_C5, NOTE_CS5, NOTE_D5, NOTE_DS5, NOTE_F5, NOTE_FS5, NOTE_G5, NOTE_A5, NOTE_C6, NOTE_CS6, NOTE_D6, NOTE_DS6, NOTE_F6, NOTE_FS6, NOTE_G6, NOTE_A6, NOTE_C7, NOTE_CS7, NOTE_D7, NOTE_DS7, NOTE_F7, NOTE_FS7, NOTE_G7, NOTE_A7 };
+          // mid C C# D D# E F F# G G# A
+
 /*
-    Play melodies stored in an array, it requires you to know
-      about timing issues and about how to play tones.
-
-    The calculation of the tones is made following the mathematical
-      operation:
-
-      timeHigh = 1/(2 * toneFrequency) = period / 2
-
-      where the different tones are described as in the table:
-
-      note          frequency       period  PW (timeHigh)  
-      ----          ---------       ------  -------------
-      c             261 Hz          3830    1915    
-      d             294 Hz          3400    1700    
-      e             329 Hz          3038    1519    
-      f             349 Hz          2864    1432    
-      g             392 Hz          2550    1275    
-      a             440 Hz          2272    1136    
-      b             493 Hz          2028    1014   
-      C             523 Hz          1912    956
-
-      (cleft) 2005 D. Cuartielles for K3
-
-	The original code, this routine is based on, was found at:
-		http://www.arduino.cc/en/Tutorial/PlayMelody
+	Play a single tone.
 */
-void playMelody(byte melody[]) {
-  byte names[] = { 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' };  
-  int tones[] = { 1915, 1700, 1519, 1432, 1275, 1136, 1014, 956 };
-
-  int count = 0;
-  int count2 = 0;
-  int count3 = 0;
-
-  int statePin = LOW;
-
-  analogWrite(SPEAKER_OUT, 0);    
-
-  for (count = 0; count < MAX_COUNT; count++) {
-    statePin = !statePin;
-
-    digitalWrite(HEARTBEAT_LED, statePin);
-
-    for (count3 = 0; count3 <= (melody[count * 2] - 48) * 30; count3++) {
-      for (count2=0; count2 < 8; count2++) {
-        if (names[count2] == melody[count * 2 + 1]) {      
-          analogWrite(SPEAKER_OUT, 500);
-          delayMicroseconds(tones[count2]);
-          analogWrite(SPEAKER_OUT, 0);
-          delayMicroseconds(tones[count2]);
-        }
-
-        if (melody[count * 2 + 1] == 'p') {
-          //  Make a pause of a certain size
-          analogWrite(SPEAKER_OUT, 0);
-          delayMicroseconds(500);
-        }
-      }
-    }
-  }
+void playTone (unsigned long freqHz, uint8_t volume, unsigned long durationMS) {
+	toneAC(freqHz, volume, durationMS);
+	noToneAC();
 }
-/*
-	Play a single tone on a Piezo buzzer
-*/
-uint16_t playTone(uint8_t tone, uint8_t volume, uint8_t durationMS) {
-	uint16_t errorStatus = 0;
 
-	return errorStatus;
+/*
+	Play a sequence of tones.
+*/
+void playSequence (int song[], unsigned long durationMS) {
+	int numTones = song[0];
+	int toneNr;
+
+	for (toneNr = 1; toneNr < numTones; toneNr++) {
+		playTone(song[toneNr], 10, durationMS);
+	}
 }
 
 /*
 	Play a sound - a sequence of pitches (or notes)
 */
-uint16_t makeSound (uint8_t soundNr, uint8_t nrTimes, uint16_t durationMS) {
+uint16_t makeSound (uint8_t soundNr, unsigned long durationMS, uint8_t nrTimes, uint32_t sequenceDelayMS) {
 	uint16_t errorStatus = 0;
-	uint8_t pitch = NOTE_C7;
-	uint8_t volume = 100;
-	uint8_t lengthMS;
-	uint8_t count = 0;
+	uint8_t volume = 10;
+	uint8_t count;
 
 	for (count = 0; count < nrTimes; count++) {
 		switch (soundNr) {
 			case 1:
-				playTone(pitch, volume, lengthMS);
+				//	Startup
+				playSequence(r2d2, 150);
 				delay(150);
-				playTone(pitch, volume, lengthMS);
+				playSequence(r2d2, 150);
+				break;
+
+			case 2:
+				//	Alarm
+				playTone(NOTE_D8, volume, durationMS);
+				delay(150);
+				playTone(NOTE_D8, volume, durationMS);
 				break;
 
 			default:
 				errorStatus = 901;
-				processError(errorStatus, F("Invalid sound number"));
 				break;
 		}
 
-		delay(durationMS);
+		if (errorStatus != 0){
+			processError(errorStatus, F("Invalid sound number"));
+			break;
+		} else {
+			delay(sequenceDelayMS);
+		}
 	}
 
 	return errorStatus;
@@ -715,12 +704,12 @@ uint16_t makeSound (uint8_t soundNr, uint8_t nrTimes, uint16_t durationMS) {
 /*
 	Sound an alarm when we need assistance
 */
-uint16_t soundAlarm (uint8_t count) {
+uint16_t soundAlarm (uint8_t nrAlarms) {
 	uint16_t errorStatus = 0;
 	uint8_t alarmCount;
 
-	for (alarmCount = 0; alarmCount < count; alarmCount++) {
-		makeSound(1, count, 250);
+	for (alarmCount = 0; alarmCount < nrAlarms; alarmCount++) {
+		makeSound(1, 150, nrAlarms, 5000);
 	}
 
 	return errorStatus;
@@ -731,19 +720,19 @@ uint16_t soundAlarm (uint8_t count) {
 
 	We're in a situation we can't get out of on our own.
 */
-uint16_t callForHelp (void) {
+uint16_t callForHelp (uint8_t nrCalls, uint8_t nrAlarms, uint32_t callDelay) {
 	uint16_t errorStatus = 0;
 	uint8_t count;
 
 	//	Send out a call for help every 20 seconds
-	for (count = 0; count < 20; count++) {
+	for (count = 0; count < nrCalls; count++) {
 		console.println(F("Help, help, help! I am stuck!"));
 		xbee.println(F("Help, help, help! I am stuck!"));
 
-		soundAlarm(5);
+		soundAlarm(nrAlarms);
 
 		//	20 second delay between calls for help
-		delay(20000);
+		delay(callDelay);
 	}
 
 	return errorStatus;
@@ -1382,14 +1371,9 @@ int readParallaxPING (byte sensorNr, boolean units=true) {
 	Read current data from the RoboClaw 2x5 Motor Controller
 */
 uint16_t readRoboClawData (uint8_t address, Motor *leftM1, Motor *rightM2) {
+	uint16_t errorStatus = 0;
 	bool valid;
 	uint8_t status;
-
-	//	Error control
-	uint16_t errorStatus;
-	String errorMsg;
-
-	errorStatus = 0;
 
 	console.println(F("Reading Left Motor Encoder.."));
 
@@ -1664,7 +1648,7 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
 	uint16_t errorStatus = 0;
 	uint16_t pulse = SERVO_CENTER_MS;
-	int motorSpeed = spd;
+	int motorSpeed = spd + servoMotor->speedAdjustment;
 
 	lastRoutine = String(F("setMotorSpeed"));
 
@@ -1806,7 +1790,7 @@ void runAwayRobot (uint16_t errorStatus) {
 	processError(errorStatus, F("Runaway robot"));
 	xbee.println(F("Runaway robot!"));
 
-	callForHelp();
+	callForHelp(2, 5, 250);
 }
 
 /********************************************************/
@@ -2119,6 +2103,7 @@ void initServos (void) {
 /************************************************************/
 void setup (void) {
 	uint16_t errorStatus = 0;
+	uint8_t loopCount = 0;
 
 	lastRoutine = String(F("SETUP"));
 
@@ -2163,7 +2148,7 @@ void setup (void) {
 		digitalWrite(COLOR_SENSOR_LED, LOW);
 	}
 
-	if (HAVE_7SEG_DISPLAYS) {
+	if (HAVE_7SEGMENT_DISPLAYS) {
 		//	Initialize the displays
 		initDisplays(MAX_NUMBER_7SEG_DISPLAYS);
 
@@ -2204,17 +2189,17 @@ void setup (void) {
 
 			//	Start the motors, forward
 			console.println(F("Starting the motors, forward"));
-			errorStatus = setMotorSpeed(&leftMotorM1, 500, false);
+			errorStatus = setMotorSpeed(&leftMotorM1, 250, false);
 
 			if (errorStatus != 0) {
 				processError(errorStatus, F("Could not set speed for the LEFT motor"));
 			} else {
-				errorStatus = setMotorSpeed(&rightMotorM2, 500, true);
+				errorStatus = setMotorSpeed(&rightMotorM2, 250, true);
 
 				if (errorStatus != 0) {
 					processError(errorStatus, F("Could not set speed for the RIGHT motor"));
 				} else {
-					delay(3000);
+					delay(5000);
 
 					//	Stop the motors
 					errorStatus = stopMotors();
@@ -2226,7 +2211,7 @@ void setup (void) {
 			}
 
 			if (errorStatus != 0) {
-				processError(errorStatus, F("Runaway robot"));
+				runAwayRobot(errorStatus);
 			} else {
 				//	Start the motors, reverse
 				console.println(F("Starting the motors, reverse"));
@@ -2240,7 +2225,7 @@ void setup (void) {
 					if (errorStatus != 0) {
 						processError(errorStatus, F("Could not set speed for the RIGHT motor"));
 					} else {
-						delay(3000);
+						delay(5000);
 
 						//	Stop the motors
 						errorStatus = stopMotors();
@@ -2253,7 +2238,61 @@ void setup (void) {
 			}
 		}
 
-		if (errorStatus == 0) {
+		/*
+			Motor testing and calibration
+		*/
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Could not calibrate and test the motors"));
+		} else if (DOING_MOTOR_CALIBRATION) {
+			delay(2000);
+			errorStatus = stopMotors();
+
+			if (errorStatus != 0) {
+				runAwayRobot(errorStatus);
+			} else {
+				console.print(F("Motor Calibration and Test starting.."));
+				loopCount = 0;
+
+				while ((errorStatus == 0) && (loopCount < 10)) {
+					errorStatus = setMotorSpeed(&leftMotorM1, 250, false);
+
+					if (errorStatus != 0) {
+						processError(errorStatus, "Could not start the " + leftMotorM1.descr + " motor");
+					} else {
+						errorStatus = setMotorSpeed(&rightMotorM2, 250, true);
+
+						if (errorStatus != 0) {
+							processError(errorStatus, "Could not start the " + rightMotorM2.descr + " motor");
+						} else {
+							console.print(F("-"));
+						}
+
+						delay(3000);
+
+						errorStatus = stopMotors();
+
+						if (errorStatus != 0) {
+							runAwayRobot(errorStatus);
+						} else {
+							delay(3000);
+
+							loopCount++;
+						}
+					}
+				}
+			}
+			
+			console.println();
+			console.println(F("Exiting Motor Calibration and Testing"));
+		}
+
+		/*
+			End of Motor Calibration and Testing
+		*/
+
+		if (errorStatus != 0) {
+			processError(errorStatus, F("Unable to do the initial area scan"));
+		} else {
 			//	Scan the entire 180 degree range and take readings
 			console.println(F("Doing initial area scan.."));
 			errorStatus = scanArea(&pan, -90, 90, 10);
@@ -2322,7 +2361,7 @@ void loop (void) {
 	setMotorSpeed(&rightMotorM2, 100, true);
 
 	//  Display the date.
-	if (displayDate && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+	if (displayDate && DISPLAY_INFORMATION && HAVE_7SEGMENT_DISPLAYS) {
 		displayInt = (now.month() * 100) + now.day();  
 
 		//  Month and day
@@ -2351,7 +2390,7 @@ void loop (void) {
 	}
   
 	//	Display the time
-	if (displayTime && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+	if (displayTime && DISPLAY_INFORMATION && HAVE_7SEGMENT_DISPLAYS) {
 		if (currentHour > 12) {
 			amTime = false;
 			currentHour = currentHour - 12;
@@ -2489,7 +2528,7 @@ void loop (void) {
 
 	console.println();
 
-	if (imuData.tempData.temperatureValid && displayTemperature && DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+	if (imuData.tempData.temperatureValid && displayTemperature && DISPLAY_INFORMATION && HAVE_7SEGMENT_DISPLAYS) {
 		//  Display the temperature in Fahrenheit
 		writeNumber(0, int(imuData.tempData.fahrenheit * 100), 2, false);
 		sevenSeg[0].writeDisplay();
@@ -2515,7 +2554,7 @@ void loop (void) {
 
 	//	Count the minutes
 	if (currentMinute != lastMinute) {
-		if (DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+		if (DISPLAY_INFORMATION && HAVE_7SEGMENT_DISPLAYS) {
 			dateMinuteCount += 1;
 			temperatureMinuteCount += 1;
 			timeMinuteCount += 1;
@@ -2528,7 +2567,7 @@ void loop (void) {
 	/*
 		Update the information display control variables
 	*/
-	if (DISPLAY_INFORMATION && HAVE_7SEG_DISPLAYS) {
+	if (DISPLAY_INFORMATION && HAVE_7SEGMENT_DISPLAYS) {
 		displayDate = (dateMinuteCount == DISPLAY_DATE_FREQ_MIN);
 		displayTemperature = (temperatureMinuteCount == DISPLAY_TEMPERATURE_FREQ_MIN);
 		displayTime = (timeMinuteCount == DISPLAY_TIME_FREQ_MIN);
