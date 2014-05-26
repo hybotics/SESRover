@@ -1,7 +1,7 @@
 /*
-	Program:   SES Rover, Main sketch header file
-	Date:      28-Apr-2014
-	Version:   0.2.5 ALPHA
+	Program:   SES Rover, Main.h - Master Control Program (MCP) sketch header file
+	Date:      30-Apr-2014
+	Version:   0.2.7 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
 					Lynxmotion's SSC-32 Servo Controller,
@@ -25,18 +25,20 @@
 
 #define	I2C_ADDRESS						0x50
 
-#define	BUILD_VERSION					"0.2.3"
-#define	BUILD_DATE 						"22-Apr-2014"
+#define	BUILD_VERSION					"0.2.7"
+#define	BUILD_DATE 						"30-Apr-2014"
 #define	BUILD_BOARD						"Arduino Mega 2560 R3, with Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
+#define STARTUP_DELAY_SECONDS			7
+#define	DOING_MOTOR_CALIBRATION			false
 
 /*
 	These settings control whether standard information is displayed
 		on the seven segment and matrix displays or not, and how
 		often, in minutes.
 */
-#define	DISPLAY_INFORMATION				true
+#define	DISPLAY_INFORMATION				false
 
 #define	DISPLAY_DATE_FREQ_MIN			15
 #define	DISPLAY_TIME_FREQ_MIN			15
@@ -57,8 +59,6 @@
 #define	HAVE_BMP180_TEMP				false
 
 #define HAVE_7SEGMENT_DISPLAYS			false
-
-#define	DOING_MOTOR_CALIBRATION			true
 
 /*********************************************************
 	Arduino Mega R3 (Arduino) Settings
@@ -146,52 +146,53 @@
 	Sound generation constants
 *********************************************************/
 
-//	These are to support the playMelody() routine, as it is now.
-#define NOTE_NAMES						{ 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' }
-#define TONE_FREQUENCIES				{ 1915, 1700, 1519, 1432, 1275, 1136, 1014, 956 }
-#define MAX_COUNT						24
-
 /*********************************************************
 	Lynxmotion SSC-32 Servo Controller Settings
 *********************************************************/
 
 #define	SERVO_MAX_DEGREES				90
 #define	SERVO_CENTER_MS					1500
+#define	SERVO_MOVE_SPEED				4000		// uS per second
 
+//	Lesser = Up, Greater = Down
 #define	SERVO_GRIP_LIFT_PIN				0
 #define SERVO_GRIP_LIFT_NAME			"Grip Lift"
 #define	SERVO_GRIP_LIFT_HOME			900
-#define	SERVO_GRIP_LIFT_OFFSET			0
-#define	SERVO_GRIP_LIFT_MIN				500
-#define	SERVO_GRIP_LIFT_MAX				2500
+#define	SERVO_GRIP_LIFT_OFFSET			-100
+#define	SERVO_GRIP_LIFT_MIN				900
+#define	SERVO_GRIP_LIFT_MAX				1750
 
+//	Lesser = Right, Greater = Left
 #define	SERVO_GRIP_WRIST_PIN			1
 #define SERVO_GRIP_WRIST_NAME			"Grip Wrist"
-#define	SERVO_GRIP_WRIST_HOME			600
+#define	SERVO_GRIP_WRIST_HOME			SERVO_CENTER_MS
 #define	SERVO_GRIP_WRIST_OFFSET			0
-#define	SERVO_GRIP_WRIST_MIN			500
+#define	SERVO_GRIP_WRIST_MIN			550
 #define	SERVO_GRIP_WRIST_MAX			2500
 
+//	Greater = Close, Lesser = Open
 #define	SERVO_GRIP_GRAB_PIN				2
 #define SERVO_GRIP_GRAB_NAME			"Grip Grab"
-#define	SERVO_GRIP_GRAB_HOME			2500
+#define	SERVO_GRIP_GRAB_HOME			500
 #define	SERVO_GRIP_GRAB_OFFSET			0
 #define	SERVO_GRIP_GRAB_MIN				500
-#define	SERVO_GRIP_GRAB_MAX				2500
+#define	SERVO_GRIP_GRAB_MAX				2000
 
+//	Lesser = Right, Greater = Left
 #define	SERVO_PAN_PIN					6
 #define SERVO_PAN_NAME					"Pan"
 #define	SERVO_PAN_HOME					SERVO_CENTER_MS
 #define	SERVO_PAN_OFFSET				-50
-#define	SERVO_PAN_LEFT_MIN				500
-#define	SERVO_PAN_RIGHT_MAX				2500
+#define	SERVO_PAN_RIGHT_MIN				600
+#define	SERVO_PAN_LEFT_MAX				2500
 
+//	Greater = Down, Lesser = Up
 #define	SERVO_TILT_PIN					7
 #define SERVO_TILT_NAME					"Tilt"
-#define	SERVO_TILT_HOME					1400
+#define	SERVO_TILT_HOME					SERVO_CENTER_MS
 #define	SERVO_TILT_OFFSET				0
-#define	SERVO_TILT_DOWN_MIN				500
-#define	SERVO_TILT_UP_MAX				2000
+#define	SERVO_TILT_UP_MIN				600
+#define	SERVO_TILT_DOWN_MAX				2500
 
 /*
 	There isn't anything on pin 3
@@ -199,6 +200,8 @@
 
 #define	SERVO_MOTOR_MIN_SPEED			-1000
 #define	SERVO_MOTOR_MAX_SPEED			1000
+#define SERVO_MOTOR_SPEED_INCR			25
+#define SERVO_MOTOR_RAMP_DELAY_MS		75
 
 //	Servo Motor gears (speeds)
 #define	SERVO_MOTOR_NEUTRAL				0
@@ -229,9 +232,8 @@
 #define	SERVO_MOTOR_LEFT_PIN			4
 #define SERVO_MOTOR_LEFT_NAME			"Left Servo Motor"
 #define	SERVO_MOTOR_LEFT_NEUTRAL		SERVO_MOTOR_NEUTRAL
-
 #define	SERVO_MOTOR_LEFT_OFFSET	        0
-#define	SERVO_MOTOR_LEFT_SPEED_ADJ		10
+#define	SERVO_MOTOR_LEFT_SPEED_ADJ		-35
 #define	SERVO_MOTOR_LEFT_DIRECTION		false
 #define	SERVO_MOTOR_LEFT_MIN			500
 #define	SERVO_MOTOR_LEFT_MAX			2500
@@ -240,9 +242,8 @@
 #define	SERVO_MOTOR_RIGHT_PIN	        5
 #define SERVO_MOTOR_RIGHT_NAME			"Right Servo Motor"
 #define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
-
 #define	SERVO_MOTOR_RIGHT_OFFSET		25
-#define	SERVO_MOTOR_RIGHT_SPEED_ADJ		0
+#define	SERVO_MOTOR_RIGHT_SPEED_ADJ		35
 #define SERVO_MOTOR_RIGHT_DIRECTION		true
 #define	SERVO_MOTOR_RIGHT_MIN			500
 #define	SERVO_MOTOR_RIGHT_MAX			2500
@@ -345,6 +346,7 @@ struct ServoMotor {
 	uint16_t neutral;
 	uint16_t minPulse;
 	uint16_t maxPulse;
+	int mspeed;
 
 	uint16_t pulse;
 

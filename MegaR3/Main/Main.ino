@@ -1,7 +1,7 @@
 /*
-	Program:      	SES Rover, Main.ino - Main sketch
-	Date:         	28-Apr-2014
-	Version:      	0.2.5 ALPHA
+	Program:      	SES Rover, Main.ino - Master Control Program (MCP) sketch
+	Date:         	30-Apr-2014
+	Version:      	0.2.7 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
 						Lynxmotion's SSC-32 Servo Controller,
@@ -104,6 +104,25 @@
 					v0.2.5 ALPHA
 					Added new sound routines that use the toneAC library. Removed old routines.
 					-------------------------------------------------------------------------------
+					v0.2.6 ALPHA 29-Apr-2014:
+					Recalibrated servos and motors.
+
+					Working on smooth acceleration and deceleration code now.
+					-------------------------------------------------------------------------------
+					v0.2.7 ALPHA 30-Apr-2014:
+					Found better codse for reading the Sharp GP2Y0A21YK0F IR sensor and modified the
+						readSharpGP2Y0A21YK0F() routine to use it. Readings are still a bit higher
+						than for the readParallaxPING() routine though. I don't know if this is normal.
+
+					I'm going to add a Nubotics WC-132 WheelCommander controller with two WW-11 Wheel
+						Watcher encoders for better servo motor control. This will greatly simplify
+						controlling the two continuous rotation servo motors, as well as get me a lot
+						more capability for navigation.
+
+					There is a Mozzi (http://sensorium.github.io/Mozzi/) library for sound generation
+						that I am thinking about running on a Lynxmotion BotBoarduino, which provides
+						for very good sound generation and modification.
+					-------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
 						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
@@ -120,8 +139,8 @@
 #include <Wire.h>
 
 /*
-	The toneAC library requires the speaker/piezo buzzer
-		to be on the following pins:
+	The toneAC library requires the speaker/piezo buzzer to be on
+		the following pins:
 
 		Pins 9 & 10 - ATmega328, ATmega128, ATmega640, ATmega8, Uno, Leonardo, etc.
 		Pins 11 & 12 - ATmega2560/2561, ATmega1280/1281, Mega
@@ -607,6 +626,20 @@ void wait (uint8_t nrSeconds, String text = "") {
 	}
 
 	console.println();
+}
+
+/*
+	Show announcement message on the desired port.
+*/
+void announce (BMSerial *port) {
+	port->println();
+	port->print("SES Rover Master Control Program (MCP), version ");
+	port->print(BUILD_VERSION);
+	port->print(" on ");
+	port->println(BUILD_DATE);
+	port->print("  for the ");
+	port->print(BUILD_BOARD);
+	port->println(".");
 }
 
 /*
@@ -1261,9 +1294,8 @@ InertialMeasurementUnit readIMU (void) {
 */
 float readSharpGP2Y0A21YK0F (byte sensorNr) {
 	byte pin = sensorNr + IR_PIN_BASE;
-
-	float volts = analogRead(pin) * 0.0048828125;
-	float distance = 65 * pow(volts, -1.10);
+	int reading = analogRead(pin);
+	float distance = (6762.0 / (reading - 9)) - 4;
 
 	lastRoutine = String(F("readSharpGP2Y0A21YK0F"));
 
@@ -1406,45 +1438,10 @@ uint16_t readRoboClawData (uint8_t address, Motor *leftM1, Motor *rightM2) {
 /*	Lynxmotion SSC-32 Servo Controller routines						*/
 /********************************************************************/
 
-DistanceObject findDistanceObjects () {
-	uint8_t readingNr;
-
-	DistanceObject distObj = {0, 0, 0, 0, 0, 0, 0, 0};
-
-	console.println(F("Finding the closest and farthest objects.."));
-
-	//	Find the closest and farthest objects
-	for (readingNr = 0; readingNr <= nrAreaReadings; readingNr++) {
-		//	Check for the closest object
-		if (areaScan[readingNr].ping < areaScan[distObj.closestPING].ping) {
-			distObj.closestPING = readingNr;
-			distObj.closestPosPING = areaScan[readingNr].positionDeg;
-		}
-
-		if (areaScan[readingNr].ir <=  areaScan[distObj.closestIR].ir) {
-			distObj.closestIR = readingNr;
-			distObj.closestPosIR = areaScan[readingNr].positionDeg;
-		}
-
-		//	Check for the farthest object
-		if (areaScan[readingNr].ping > areaScan[distObj.farthestPING].ping) {
-			distObj.farthestPING = readingNr;
-			distObj.farthestPosPING = areaScan[readingNr].positionDeg;
-		}
-
-		if (areaScan[readingNr].ir > areaScan[distObj.farthestIR].ir) {
-			distObj.farthestIR = readingNr;
-			distObj.farthestPosIR = areaScan[readingNr].positionDeg;
-		}
-	}
-
-	return distObj;
-}
-
 /*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use HardwareSerial2()
 */
-uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpeed = 0, int moveTime = 0) {
+uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term = true, uint16_t moveSpeed = 0, uint16_t moveTime = 0) {
 	uint16_t errorStatus = 0;
 	char asciiCR = 13;
 
@@ -1497,7 +1494,7 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
 /*
     Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use BMSerial
 */
-uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int moveSpeed = 0, int moveTime = 0) {
+uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, uint16_t moveSpeed = 0, uint16_t moveTime = 0) {
 	uint16_t servoPulse;
 
 	uint16_t errorStatus = 0;
@@ -1520,18 +1517,173 @@ uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, int mov
 		processError(errorStatus, F("Servo position (degrees) is invalid"));
 	} else {
 		if ((servoPulse >= servo->minPulse) && (servoPulse <= servo->maxPulse)) {
-			errorStatus = moveServoPw(servo, servoPulse, true);
+			errorStatus = moveServoPw(servo, servoPulse, true, moveSpeed, moveTime);
 
 			if (errorStatus != 0) {
 				processError(errorStatus, "Could not move the " + servo->descr + " servo");
 			}
-		} else {
-			errorStatus = 201;
-			processError(errorStatus, F("Servo pulse is out of range"));
 		}
 	}
 
 	return errorStatus;
+}
+
+/*
+	Set the motor speed
+*/
+uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term, uint8_t speedIncr = SERVO_MOTOR_SPEED_INCR) {
+	uint16_t errorStatus = 0;
+	uint16_t pulse = SERVO_CENTER_MS;
+	uint16_t speedRange = abs(servoMotor->mspeed - (spd + servoMotor->speedAdjustment));
+	uint8_t nrSpeedSteps = abs(speedRange / speedIncr);
+	int motorDirection = (servoMotor->forward ? 1 : -1);
+	uint8_t stepCount = 0;
+
+	lastRoutine = String(F("setMotorSpeed"));
+
+	if ((spd < SERVO_MOTOR_MIN_SPEED) || (spd > SERVO_MOTOR_MAX_SPEED)) {
+		errorStatus = 501;
+		processError(errorStatus, "Speed is out of range for the " + servoMotor->descr + " servo");
+	} else {
+		Servo servo;
+
+		//	Setup for the call to moveServoPw()
+		servo.pin = servoMotor->pin;
+		servo.descr = String(servoMotor->descr);
+		servo.offset = servoMotor->offset;
+		servo.homePos = servoMotor->neutral;
+		servo.minPulse = servoMotor->minPulse;
+		servo.maxPulse = servoMotor->maxPulse;
+		servo.error = 0;
+/*
+		if (servoMotor->forward == false) {
+			speedIncr *= -1;
+			motorSpeed *= -1;
+		}
+*/
+		console.println();
+
+		console.print(F("(setMotorSpeed #1) ServoMotor = '"));
+		console.print(servoMotor->descr);
+		console.print(F("', spd = "));
+		console.print(spd);
+		console.print(F(", speedIncr = "));
+		console.println(speedIncr);
+
+		console.print(F("servoMotor->mspeed = "));
+		console.print(servoMotor->mspeed);
+		console.print(F(", speedRange = "));
+		console.print(speedRange);
+		console.print(F(", nrSpeedSteps = "));
+		console.print(nrSpeedSteps);
+		console.print(F(", motorDirection = "));
+		console.print(motorDirection);
+		console.println();
+
+		//	Ramp the motor speed up or down gradually
+		for (stepCount = 0; stepCount < nrSpeedSteps; stepCount++) {
+			pulse += (speedIncr * motorDirection);
+			servo.msPulse = pulse;
+
+			errorStatus = moveServoPw(&servo, pulse, term);
+
+			if (errorStatus != 0) {
+				processError(errorStatus, "Unable to ramp the speed for the " + servoMotor->descr + " motor");
+			} else {
+				delay(SERVO_MOTOR_RAMP_DELAY_MS);
+			}
+		}
+
+		//	Set the motor's speed
+		if (errorStatus != 0) {
+			servoMotor->error = servo.error;
+		} else {
+			servoMotor->mspeed = spd;
+			hasNotMoved = false;
+		}
+
+		console.println();
+
+		console.print(F("(setMotorSpeed #2) ServoMotor = '"));
+		console.print(servoMotor->descr);
+		console.print(F("', spd = "));
+		console.print(spd);
+		console.print(F(", speedIncr = "));
+		console.println(speedIncr);
+
+		console.print(F("servoMotor->mspeed = "));
+		console.print(servoMotor->mspeed);
+		console.print(F(", speedRange = "));
+		console.print(speedRange);
+		console.print(F(", nrSpeedSteps = "));
+		console.print(nrSpeedSteps);
+		console.print(F(", motorDirection = "));
+		console.print(motorDirection);
+		console.println();
+	}
+
+	return errorStatus;
+}
+
+/*
+	Stop both motors NOW
+*/
+uint16_t stopMotors (uint16_t rampSpeed = SERVO_MOTOR_SPEED_INCR) {
+	uint16_t errorStatus = 0;
+
+	lastRoutine = String(F("stopMotors"));
+	console.println(F("Stopping the motors.."));
+
+	errorStatus = setMotorSpeed(&leftMotorM1, 0, false, rampSpeed);
+
+	if (errorStatus != 0) {
+		processError(errorStatus, "Could not set the speed for the " + leftMotorM1.descr + " motor");
+	} else {
+		errorStatus = setMotorSpeed(&rightMotorM2, 0, true, rampSpeed);
+
+		if (errorStatus != 0) {
+			processError(errorStatus, "Could not set the speed for the " + rightMotorM2.descr + " motor");
+		} else {
+			hasNotMoved = true;
+		}
+	}
+
+	return errorStatus;
+}
+
+DistanceObject findDistanceObjects () {
+	uint8_t readingNr;
+
+	DistanceObject distObj = {0, 0, 0, 0, 0, 0, 0, 0};
+
+	console.println(F("Finding the closest and farthest objects.."));
+
+	//	Find the closest and farthest objects
+	for (readingNr = 0; readingNr <= nrAreaReadings; readingNr++) {
+		//	Check for the closest object
+		if (areaScan[readingNr].ping < areaScan[distObj.closestPING].ping) {
+			distObj.closestPING = readingNr;
+			distObj.closestPosPING = areaScan[readingNr].positionDeg;
+		}
+
+		if (areaScan[readingNr].ir <=  areaScan[distObj.closestIR].ir) {
+			distObj.closestIR = readingNr;
+			distObj.closestPosIR = areaScan[readingNr].positionDeg;
+		}
+
+		//	Check for the farthest object
+		if (areaScan[readingNr].ping > areaScan[distObj.farthestPING].ping) {
+			distObj.farthestPING = readingNr;
+			distObj.farthestPosPING = areaScan[readingNr].positionDeg;
+		}
+
+		if (areaScan[readingNr].ir > areaScan[distObj.farthestIR].ir) {
+			distObj.farthestIR = readingNr;
+			distObj.farthestPosIR = areaScan[readingNr].positionDeg;
+		}
+	}
+
+	return distObj;
 }
 
 /*
@@ -1637,78 +1789,6 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 
 		//	This area scan is valid
 		areaScanValid = true;
-	}
-
-	return errorStatus;
-}
-
-/*
-	Set the motor speed
-*/
-uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term) {
-	uint16_t errorStatus = 0;
-	uint16_t pulse = SERVO_CENTER_MS;
-	int motorSpeed = spd + servoMotor->speedAdjustment;
-
-	lastRoutine = String(F("setMotorSpeed"));
-
-	if ((spd < SERVO_MOTOR_MIN_SPEED) || (spd > SERVO_MOTOR_MAX_SPEED)) {
-		errorStatus = 501;
-		processError(errorStatus, F("Speed is out of range"));
-	} else {
-		Servo servo;
-
-		//	Setup for the call to moveServoPw()
-		servo.pin = servoMotor->pin;
-		servo.descr = String(servoMotor->descr);
-		servo.offset = servoMotor->offset;
-		servo.homePos = servoMotor->neutral;
-		servo.minPulse = servoMotor->minPulse;
-		servo.maxPulse = servoMotor->maxPulse;
-		servo.error = 0;
-
-		if (servoMotor->forward == false) {
-			motorSpeed *= -1;
-		}
-
-		pulse += motorSpeed;
-		servo.msPulse = pulse;
-
-		//	Set the motor's speed
-		errorStatus = moveServoPw(&servo, pulse, term);
-
-		if (errorStatus != 0) {
-			servoMotor->error = servo.error;
-			processError(errorStatus, "Could not set the " + servoMotor->descr + " motor speed");
-		} else {
-			hasNotMoved = false;
-		}
-	}
-
-	return errorStatus;
-}
-
-/*
-	Stop both motors NOW
-*/
-uint16_t stopMotors (void) {
-	uint16_t errorStatus = 0;
-
-	lastRoutine = String(F("stopMotors"));
-	console.println(F("Stopping the motors.."));
-
-	errorStatus = setMotorSpeed(&leftMotorM1, 0, false);
-
-	if (errorStatus != 0) {
-		processError(errorStatus, "Could not set the speed for the " + leftMotorM1.descr + " motor");
-	} else {
-		errorStatus = setMotorSpeed(&rightMotorM2, 0, true);
-
-		if (errorStatus != 0) {
-			processError(errorStatus, "Could not set the speed for the " + rightMotorM2.descr + " motor");
-		} else {
-			hasNotMoved = true;
-		}
 	}
 
 	return errorStatus;
@@ -2081,8 +2161,8 @@ void initServos (void) {
 	pan.homePos = SERVO_PAN_HOME;
 	pan.msPulse = 0;
 	pan.angle = 0;
-	pan.minPulse = SERVO_PAN_LEFT_MIN;
-	pan.maxPulse = SERVO_PAN_RIGHT_MAX;
+	pan.minPulse = SERVO_PAN_RIGHT_MIN;
+	pan.maxPulse = SERVO_PAN_LEFT_MAX;
 	pan.maxDegrees = SERVO_MAX_DEGREES;
 	pan.error = 0;
 
@@ -2092,8 +2172,8 @@ void initServos (void) {
 	tilt.homePos = SERVO_TILT_HOME;
 	tilt.msPulse = 0;
 	tilt.angle = 0;
-	tilt.minPulse = SERVO_TILT_DOWN_MIN;
-	tilt.maxPulse = SERVO_TILT_UP_MAX;
+	tilt.minPulse = SERVO_TILT_UP_MIN;
+	tilt.maxPulse = SERVO_TILT_DOWN_MAX;
 	tilt.maxDegrees = SERVO_MAX_DEGREES;
 	tilt.error = 0;
 }
@@ -2109,19 +2189,11 @@ void setup (void) {
 
 	//  Initialize the console port
 	console.begin(115200);
+	announce(&console);
 
+	//	Delay for a few seconds, before starting initialization
 	console.println();
-	console.print(F("SES Rover Motor Servo Test, version "));
-	console.print(BUILD_VERSION);
-	console.print(F(" on "));
-	console.println(BUILD_DATE);
-	console.print(F("     for the "));
-	console.print(BUILD_BOARD);
-	console.println(F("."));
-
-	//	Delay for 10 seconds, before starting initialization
-	console.println();
-	wait(7, "initialization");
+	wait(STARTUP_DELAY_SECONDS, "initialization");
 
 	console.println();
 	console.println(F("Initializing Serial Ports.."));
@@ -2131,6 +2203,7 @@ void setup (void) {
 
 	//	Initialize the XBee (ZigBee) Mesh Wireless port
 	xbee.begin(115200);
+	announce(&xbee);
 
 	console.println(F("Initializing Digital Pins.."));
 
@@ -2215,12 +2288,12 @@ void setup (void) {
 			} else {
 				//	Start the motors, reverse
 				console.println(F("Starting the motors, reverse"));
-				errorStatus = setMotorSpeed(&leftMotorM1, -500, false);
+				errorStatus = setMotorSpeed(&leftMotorM1, -250, false);
 
 				if (errorStatus != 0) {
 					processError(errorStatus, F("Could not set speed for the LEFT motor"));
 				} else {
-					errorStatus = setMotorSpeed(&rightMotorM2, -500, true);
+					errorStatus = setMotorSpeed(&rightMotorM2, -250, true);
 
 					if (errorStatus != 0) {
 						processError(errorStatus, F("Could not set speed for the RIGHT motor"));
@@ -2237,49 +2310,47 @@ void setup (void) {
 				}
 			}
 		}
+	}
 
-		/*
-			Motor testing and calibration
-		*/
+	/*
+		Motor testing and calibration
+	*/
+	if (errorStatus != 0) {
+		processError(errorStatus, F("Could not calibrate and test the motors"));
+	} else if (DOING_MOTOR_CALIBRATION) {
+		delay(2000);
+		errorStatus = stopMotors();
+
 		if (errorStatus != 0) {
-			processError(errorStatus, F("Could not calibrate and test the motors"));
-		} else if (DOING_MOTOR_CALIBRATION) {
-			delay(2000);
-			errorStatus = stopMotors();
+			runAwayRobot(errorStatus);
+		} else {
+			console.print(F("Motor Calibration and Test starting.."));
+			loopCount = 0;
 
-			if (errorStatus != 0) {
-				runAwayRobot(errorStatus);
-			} else {
-				console.print(F("Motor Calibration and Test starting.."));
-				loopCount = 0;
+			while ((errorStatus == 0) && (loopCount < 10)) {
+				errorStatus = setMotorSpeed(&leftMotorM1, 250, false);
 
-				while ((errorStatus == 0) && (loopCount < 10)) {
-					errorStatus = setMotorSpeed(&leftMotorM1, 250, false);
+				if (errorStatus != 0) {
+					processError(errorStatus, "Could not start the " + leftMotorM1.descr + " motor");
+				} else {
+					errorStatus = setMotorSpeed(&rightMotorM2, 250, true);
 
 					if (errorStatus != 0) {
-						processError(errorStatus, "Could not start the " + leftMotorM1.descr + " motor");
+						processError(errorStatus, "Could not start the " + rightMotorM2.descr + " motor");
 					} else {
-						errorStatus = setMotorSpeed(&rightMotorM2, 250, true);
-
-						if (errorStatus != 0) {
-							processError(errorStatus, "Could not start the " + rightMotorM2.descr + " motor");
-						} else {
-							console.print(F("-"));
-						}
-
-						delay(3000);
-
-						errorStatus = stopMotors();
-
-						if (errorStatus != 0) {
-							runAwayRobot(errorStatus);
-						} else {
-							delay(3000);
-
-							loopCount++;
-						}
+						console.print(F("-"));
 					}
-				}
+
+					delay(3000);
+
+					errorStatus = stopMotors();
+
+					if (errorStatus != 0) {
+						runAwayRobot(errorStatus);
+					} else {
+						delay(3000);
+						loopCount++;
+					}					}
 			}
 			
 			console.println();
@@ -2289,19 +2360,19 @@ void setup (void) {
 		/*
 			End of Motor Calibration and Testing
 		*/
+	}
+
+	if (errorStatus != 0) {
+		processError(errorStatus, F("Unable to do the initial area scan"));
+	} else {
+		//	Scan the entire 180 degree range and take readings
+		console.println(F("Doing initial area scan.."));
+		errorStatus = scanArea(&pan, -90, 90, 10);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("Unable to do the initial area scan"));
+			processError(errorStatus, F("Could not complete the initial area scan"));
 		} else {
-			//	Scan the entire 180 degree range and take readings
-			console.println(F("Doing initial area scan.."));
-			errorStatus = scanArea(&pan, -90, 90, 10);
-
-			if (errorStatus != 0) {
-				processError(errorStatus, F("Could not complete the initial area scan"));
-			} else {
-				areaScanValid = true;
-			}
+			areaScanValid = true;
 		}
 	}
 }
@@ -2357,8 +2428,8 @@ void loop (void) {
 	}
 
 	//	Start our motors at a reasonable speed.
-	setMotorSpeed(&leftMotorM1, 100, false);
-	setMotorSpeed(&rightMotorM2, 100, true);
+	setMotorSpeed(&leftMotorM1, 250, false);
+	setMotorSpeed(&rightMotorM2, 250, true);
 
 	//  Display the date.
 	if (displayDate && DISPLAY_INFORMATION && HAVE_7SEGMENT_DISPLAYS) {
