@@ -1,27 +1,27 @@
 /*
-	Program:   SES Rover, Main.h - Master Control Program (MCP) sketch header file
-	Date:      30-Apr-2014
-	Version:   0.2.7 ALPHA
+	Program: 	SES Rover, Main.h - Master Control Program (MCP) sketch header file
+	Date:		30-Apr-2014
+	Version:	0.2.7 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
-					Lynxmotion's SSC-32 Servo Controller,
-					and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
+				Lynxmotion's SSC-32 Servo Controller,
+				and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
 
 	Purpose:	To experiment with various sensor configurations, tracking objects (heat or
-					color based), course following, manipulation of the environment, and to
-					test code that will later be used on W.A.L.T.E.R. 2.0.
+				color based), course following, manipulation of the environment, and to
+				test code that will later be used on W.A.L.T.E.R. 2.0.
 
 	Comments:	Credit is given, where applicable, for code I did not originate.
 
-				Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
+			Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 
 #ifndef	__MAIN_H__
 #define	__MAIN_H__
 
-/*********************************************************/
-/*	General settings 									 */
-/*********************************************************/
+/************************************************************/
+/*	General settings 					*/
+/************************************************************/
 
 #define	I2C_ADDRESS						0x50
 
@@ -51,7 +51,7 @@
 #define HAVE_HEAT_SENSOR				false
 #define HAVE_DS1307_RTC					false
 
-#define HAVE_10DOF_IMU					false
+#define	HAVE_10DOF_IMU					false
 
 //	NOTE: These three are all contained on the 10DOF IMU board
 #define	HAVE_LSM303DLHC_ACCEL			false
@@ -103,7 +103,7 @@
 */
 #define SPEAKER_OUT_ONE					11
 #define	SPEAKER_OUT_TWO					12
-#define	HEARTBEAT_LED       	        13
+#define	HEARTBEAT_LED 					13
 #define	COLOR_SENSOR_LED				53
 
 /*
@@ -152,7 +152,7 @@
 
 #define	SERVO_MAX_DEGREES				90
 #define	SERVO_CENTER_MS					1500
-#define	SERVO_MOVE_SPEED				4000		// uS per second
+#define	SERVO_MOVE_SPEED				4000		//	uS per second
 
 //	Lesser = Up, Greater = Down
 #define	SERVO_GRIP_LIFT_PIN				0
@@ -232,14 +232,14 @@
 #define	SERVO_MOTOR_LEFT_PIN			4
 #define SERVO_MOTOR_LEFT_NAME			"Left Servo Motor"
 #define	SERVO_MOTOR_LEFT_NEUTRAL		SERVO_MOTOR_NEUTRAL
-#define	SERVO_MOTOR_LEFT_OFFSET	        0
+#define	SERVO_MOTOR_LEFT_OFFSET 		0
 #define	SERVO_MOTOR_LEFT_SPEED_ADJ		-35
 #define	SERVO_MOTOR_LEFT_DIRECTION		false
 #define	SERVO_MOTOR_LEFT_MIN			500
 #define	SERVO_MOTOR_LEFT_MAX			2500
 
 //	Right Servo Motor assignments
-#define	SERVO_MOTOR_RIGHT_PIN	        5
+#define	SERVO_MOTOR_RIGHT_PIN			5
 #define SERVO_MOTOR_RIGHT_NAME			"Right Servo Motor"
 #define	SERVO_MOTOR_RIGHT_NEUTRAL		SERVO_MOTOR_NEUTRAL
 #define	SERVO_MOTOR_RIGHT_OFFSET		25

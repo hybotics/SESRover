@@ -1,138 +1,138 @@
 /*
-	Program:      	SES Rover, Main.ino - Master Control Program (MCP) sketch
-	Date:         	30-Apr-2014
-	Version:      	0.2.7 ALPHA
+	Program:      		SES Rover, Main.ino - Master Control Program (MCP) sketch
+	Date:         		30-Apr-2014
+	Version:      		0.2.7 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
-						Lynxmotion's SSC-32 Servo Controller,
-						and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
+					Lynxmotion's SSC-32 Servo Controller,
+					and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
 
 	Purpose:		To experiment with various sensor configurations, tracking objects (heat or
-						color based), course following, manipulation of the environment, and to
-						test code that will later be used on W.A.L.T.E.R. 2.0.
+					color based), course following, manipulation of the environment, and to
+					test code that will later be used on W.A.L.T.E.R. 2.0.
 
-					Change Log
-					-------------------------------------------------------------------------------
-					v0.0.1 ALPHA 19-Feb-2014:
-					Initial build from W.A.L.T.E.R. 2.0 code
-					-------------------------------------------------------------------------------
-					v0.0.2 ALPHA 20-Feb-2014:
-					Adding routines to scan the area and move the robot.
+				Change Log
+				-------------------------------------------------------------------------------
+				v0.0.1 ALPHA 19-Feb-2014:
+				Initial build from W.A.L.T.E.R. 2.0 code
+				-------------------------------------------------------------------------------
+				v0.0.2 ALPHA 20-Feb-2014:
+				Adding routines to scan the area and move the robot.
 
-					Rewrote the ServoMotor struct to use naming like the Servo struct.
-					-------------------------------------------------------------------------------
-					v0.0.3 ALPHA 17-Apr-2014:
-					Switched processor to the Arduino Mega 2560 R3 board, because there is not enough
-						memory on a BotBoarduino (Arduino Duemilanove) for what I need to do.
+				Rewrote the ServoMotor struct to use naming like the Servo struct.
+				-------------------------------------------------------------------------------
+				v0.0.3 ALPHA 17-Apr-2014:
+				Switched processor to the Arduino Mega 2560 R3 board, because there is not enough
+					memory on a BotBoarduino (Arduino Duemilanove) for what I need to do.
 
-					Making adjustments to take advantage of the extra hardware serial ports.
-					-------------------------------------------------------------------------------
-					v0.1.0 ALPHA 18-Apr-2014 (MAJOR RELEASE):
-					More error checking in the setup() routine.
+				Making adjustments to take advantage of the extra hardware serial ports.
+				-------------------------------------------------------------------------------
+				v0.1.0 ALPHA 18-Apr-2014 (MAJOR RELEASE):
+				More error checking in the setup() routine.
 
-					Added some error checking to scanArea().
+				Added some error checking to scanArea().
 
-					Added the displayAreaScanReadings() routine to display all the readings from the
-						areaScan array.
+				Added the displayAreaScanReadings() routine to display all the readings from the
+					areaScan array.
 
-					Moved the code to read the color and heat sensors into separate routines.
+				Moved the code to read the color and heat sensors into separate routines.
 
-					Added boolean switch settings HAVE_10DOF_IMU, HAVE_COLOR_SENSOR and HAVE_HEAT_SENSOR
-						to the header file to allow turning this sensor code on and off easily.
+				Added boolean switch settings HAVE_10DOF_IMU, HAVE_COLOR_SENSOR and HAVE_HEAT_SENSOR
+					to the header file to allow turning this sensor code on and off easily.
 
-					Added the displayIMUData() and readIMU() for the Adafruit 10DOF IMU
+				Added the displayIMUData() and readIMU() for the Adafruit 10DOF IMU
 
-					Added conditional initialization for all optional sensors.
+				Added conditional initialization for all optional sensors.
 
-					Added the readGP2Y0A21YK0F() routine to read the Sharp GP2Y0A21YK0F IR sensor
+				Added the readGP2Y0A21YK0F() routine to read the Sharp GP2Y0A21YK0F IR sensor
 
-					Changed the name of the readIR() routine to readGP2D12().
+				Changed the name of the readIR() routine to readGP2D12().
 
-					Changed the name of the readPING() routine to readParallaxPING().
-					-------------------------------------------------------------------------------
-					v0.2.0 19-Apr-2014 (MAJOR RELEASE):
-					Rearranged the sensor initialization code in initSensors() to allow setting whether
-						these sensors are available or not on the robot.
+				Changed the name of the readPING() routine to readParallaxPING().
+				-------------------------------------------------------------------------------
+				v0.2.0 19-Apr-2014 (MAJOR RELEASE):
+				Rearranged the sensor initialization code in initSensors() to allow setting whether
+					these sensors are available or not on the robot.
 
-					Added definintions in the header files to enable/disable the various sensors.
+				Added definintions in the header files to enable/disable the various sensors.
 
-					Added the 'name' field to the Servo, ServoMotor, and Motor structs.
+				Added the 'name' field to the Servo, ServoMotor, and Motor structs.
 
-					Split the readIMU() routine into three additional routines - readLSM303DLHC(),
-						readL3GD20Gyro(), and readBMP180() because each of these sensors can be purchased
-						from Adafruit separately.
+				Split the readIMU() routine into three additional routines - readLSM303DLHC(),
+					readL3GD20Gyro(), and readBMP180() because each of these sensors can be purchased
+					from Adafruit separately.
 
-					Split the displayIMUData() into three separate display routines for the same reason.
+				Split the displayIMUData() into three separate display routines for the same reason.
 
-					Added separate structs for each sensor: bmp180Data, l3gd20Data, and lsm303dlhcData
+				Added separate structs for each sensor: bmp180Data, l3gd20Data, and lsm303dlhcData
 
-					Changed the readIMU() and displayIMUData() routines to call the respective sensor
-						reading and display routines.
+				Changed the readIMU() and displayIMUData() routines to call the respective sensor
+					reading and display routines.
 
-					Created the findDistanceObjects() routine and DistanceObject struct.
+				Created the findDistanceObjects() routine and DistanceObject struct.
 
-					Added display of distance objects in displayAreaScanReadings().
-					-------------------------------------------------------------------------------
-					v0.2.1 20-Apr-2014:
-					Fixed a bug in the scanArea() routine. The index variable needed to be an int,
-						because it can be negative. It was a uint16_6. The scanner works now!
+				Added display of distance objects in displayAreaScanReadings().
+				-------------------------------------------------------------------------------
+				v0.2.1 20-Apr-2014:
+				Fixed a bug in the scanArea() routine. The index variable needed to be an int,
+					because it can be negative. It was a uint16_6. The scanner works now!
 
-					Added a 10 second delay before initialization to allow getting set to shoot
-						videos or do other things before the robot moves.
+				Added a 10 second delay before initialization to allow getting set to shoot
+					videos or do other things before the robot moves.
 
-					Starting to pull code I've written from other files, for stuff like displays and
-						displaying data.
-					-------------------------------------------------------------------------------
-					v0.2.2 21-Apr-2014:
-					Pulling in more initialization code from other files.
+				Starting to pull code I've written from other files, for stuff like displays and
+					displaying data.
+				-------------------------------------------------------------------------------
+				v0.2.2 21-Apr-2014:
+				Pulling in more initialization code from other files.
 
-					Added display code for date and time.
+				Added display code for date and time.
 
-					Added the calculatePitchRoll() routine, and modified the readIMU() routine to use it.
+				Added the calculatePitchRoll() routine, and modified the readIMU() routine to use it.
 
-					Adde noise (sound) making routines playTone(), makeSound(), and soundAlarm()
-					-------------------------------------------------------------------------------
-					v0.2.3 22-Apr-2014:
-					Added motor calibration and testing code.
+				Adde noise (sound) making routines playTone(), makeSound(), and soundAlarm()
+				-------------------------------------------------------------------------------
+				v0.2.3 22-Apr-2014:
+				Added motor calibration and testing code.
 
-					Added ten speed 'gear' constants to the header file, for forward and reverse speeds
-					-------------------------------------------------------------------------------
-					v0.2.4 26-Apr-2014:
-					Decided on using the toneAC library for generating sounds. This requires the use of
-						pins 11 and 12 for the Piezo Buzzer.
-					-------------------------------------------------------------------------------
-					v0.2.5 ALPHA
-					Added new sound routines that use the toneAC library. Removed old routines.
-					-------------------------------------------------------------------------------
-					v0.2.6 ALPHA 29-Apr-2014:
-					Recalibrated servos and motors.
+				Added ten speed 'gear' constants to the header file, for forward and reverse speeds
+				-------------------------------------------------------------------------------
+				v0.2.4 26-Apr-2014:
+				Decided on using the toneAC library for generating sounds. This requires the use of
+					pins 11 and 12 for the Piezo Buzzer.
+				-------------------------------------------------------------------------------
+				v0.2.5 ALPHA
+				Added new sound routines that use the toneAC library. Removed old routines.
+				-------------------------------------------------------------------------------
+				v0.2.6 ALPHA 29-Apr-2014:
+				Recalibrated servos and motors.
 
-					Working on smooth acceleration and deceleration code now.
-					-------------------------------------------------------------------------------
-					v0.2.7 ALPHA 30-Apr-2014:
-					Found better codse for reading the Sharp GP2Y0A21YK0F IR sensor and modified the
-						readSharpGP2Y0A21YK0F() routine to use it. Readings are still a bit higher
-						than for the readParallaxPING() routine though. I don't know if this is normal.
+				Working on smooth acceleration and deceleration code now.
+				-------------------------------------------------------------------------------
+				v0.2.7 ALPHA 30-Apr-2014:
+				Found better codse for reading the Sharp GP2Y0A21YK0F IR sensor and modified the
+					readSharpGP2Y0A21YK0F() routine to use it. Readings are still a bit higher
+					than for the readParallaxPING() routine though. I don't know if this is normal.
 
-					I'm going to add a Nubotics WC-132 WheelCommander controller with two WW-11 Wheel
-						Watcher encoders for better servo motor control. This will greatly simplify
-						controlling the two continuous rotation servo motors, as well as get me a lot
-						more capability for navigation.
+				I'm going to add a Nubotics WC-132 WheelCommander controller with two WW-11 Wheel
+					Watcher encoders for better servo motor control. This will greatly simplify
+					controlling the two continuous rotation servo motors, as well as get me a lot
+					more capability for navigation.
 
-					There is a Mozzi (http://sensorium.github.io/Mozzi/) library for sound generation
-						that I am thinking about running on a Lynxmotion BotBoarduino, which provides
-						for very good sound generation and modification.
-					-------------------------------------------------------------------------------
+				There is a Mozzi (http://sensorium.github.io/Mozzi/) library for sound generation
+					that I am thinking about running on a Lynxmotion BotBoarduino, which provides
+					for very good sound generation and modification.
+				-------------------------------------------------------------------------------
 
-	Dependencies:	Adafruit libraries:
-						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
+	Dependencies:		Adafruit libraries:
+					Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
 
-					Hybotics libraries:
-						Hybotics_10DOF_Unified (forked from the Adafruit_10DOF library)
-						Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LSM303 library)
+				Hybotics libraries:
+					Hybotics_10DOF_Unified (forked from the Adafruit_10DOF library)
+					Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LSM303 library)
 
-					Other libraries:
-						RTClib for the DS1307 (Adafruit's version)
+				Other libraries:
+					RTClib for the DS1307 (Adafruit's version)
 
 	Comments:		Credit is given, where applicable, for code I did not originate.
 */
