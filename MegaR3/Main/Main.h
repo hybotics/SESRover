@@ -1,19 +1,19 @@
 /*
 	Program: 	SES Rover, Main.h - Master Control Program (MCP) sketch header file
-	Date:		30-Apr-2014
-	Version:	0.2.7 ALPHA
+	Date:		13-Jun-2014
+	Version:	0.2.8 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
-				Lynxmotion's SSC-32 Servo Controller,
-				and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
+					Lynxmotion's SSC-32 Servo Controller,
+					and a 3DOF (Raise/Lower, Wrist Rotate, Open/Close) Little Grip gripper
 
 	Purpose:	To experiment with various sensor configurations, tracking objects (heat or
-				color based), course following, manipulation of the environment, and to
-				test code that will later be used on W.A.L.T.E.R. 2.0.
+					color based), course following, manipulation of the environment, and to
+					test code that will later be used on W.A.L.T.E.R. 2.0.
 
 	Comments:	Credit is given, where applicable, for code I did not originate.
 
-			Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
+				Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 
 #ifndef	__MAIN_H__
@@ -23,11 +23,11 @@
 /*	General settings 					*/
 /************************************************************/
 
-#define	I2C_ADDRESS						0x50
+#define	I2C_SLAVE_ADDRESS				0x50
 
-#define	BUILD_VERSION					"0.2.7"
-#define	BUILD_DATE 						"30-Apr-2014"
-#define	BUILD_BOARD						"Arduino Mega 2560 R3, with Lynxmotion's SSC-32"
+#define	BUILD_VERSION					"0.2.8"
+#define	BUILD_DATE 						"13-Jun-2014"
+#define	BUILD_BOARD						"Raspberry Pi Model B, Arduino Mega 2560 R3, and Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
 #define STARTUP_DELAY_SECONDS			7
@@ -193,6 +193,22 @@
 #define	SERVO_TILT_OFFSET				0
 #define	SERVO_TILT_UP_MIN				600
 #define	SERVO_TILT_DOWN_MAX				2500
+
+//	Lesser = Right, Greater = Left
+#define	SERVO_CAMPAN_PIN				8
+#define SERVO_CAMPAN_NAME				"Camera Pan"
+#define	SERVO_CAMPAN_HOME				SERVO_CENTER_MS
+#define	SERVO_CAMPAN_OFFSET				0
+#define	SERVO_CAMPAN_RIGHT_MIN			600
+#define	SERVO_CAMPAN_LEFT_MAX			2500
+
+//	Greater = Down, Lesser = Up
+#define	SERVO_CAMTILT_PIN				9
+#define SERVO_CAMTILT_NAME				"Camera Tilt"
+#define	SERVO_CAMTILT_HOME				SERVO_CENTER_MS
+#define	SERVO_CAMTILT_OFFSET			0
+#define	SERVO_CAMTILT_UP_MIN			600
+#define	SERVO_CAMTILT_DOWN_MAX			2500
 
 /*
 	There isn't anything on pin 3
