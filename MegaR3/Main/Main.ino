@@ -1,6 +1,6 @@
 /*
 	Program:    	SES Rover, Main.ino - Master Control Program (MCP) sketch
-	Date:       	13-Jun-2014
+	Date:       	15-Jun-2014
 	Version:    	0.2.8 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
@@ -11,7 +11,7 @@
 						color based), course following, manipulation of the environment, and to
 						test code that will later be used on W.A.L.T.E.R. 2.0.
 
-					Change Log
+												Change Log
 					-------------------------------------------------------------------------------
 					v0.0.1 ALPHA 19-Feb-2014:
 					Initial build from W.A.L.T.E.R. 2.0 code
@@ -97,11 +97,11 @@
 
 					Added ten speed 'gear' constants to the header file, for forward and reverse speeds
 					-------------------------------------------------------------------------------
-					v0.2.4 26-Apr-2014:
+					v0.2.4 ALPHA 26-Apr-2014:
 					Decided on using the toneAC library for generating sounds. This requires the use of
 						pins 11 and 12 for the Piezo Buzzer.
 					-------------------------------------------------------------------------------
-					v0.2.5 ALPHA
+					v0.2.5 ALPHA 28-Apr-2014:
 					Added new sound routines that use the toneAC library. Removed old routines.
 					-------------------------------------------------------------------------------
 					v0.2.6 ALPHA 29-Apr-2014:
@@ -130,7 +130,11 @@
 						look at what ever the gripper is near. These images and/or video might be used
 						for positioning of the gripper.
 
-					Added defines in the header file for the new campan and camtilt servos.
+					Added defines in the header file for the new camera pan and camera tilt servos.
+
+					Renamed pan to mainPan, tilt to mainTilt, camPan to cameraPan, and camTilt to cameraTilt.
+
+					Added pan servos for the lower left front and right front
 					---------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -381,7 +385,7 @@ uint8_t roboClawAddress2 = ROBOCLAW_SERIAL_BASE_ADDR + 1;
 Motor leftM1, rightM2;
 
 //	Standard R/C servos
-Servo camPan, camTilt, gripLift, gripWrist, gripGrab, pan, tilt;
+Servo cameraPan, cameraTilt, gripLift, gripWrist, gripGrab, mainPan, mainTilt, leftTilt, rightTilt;
 
 //	Continuous rotation servo motors
 ServoMotor leftMotorM1 = {
@@ -1806,7 +1810,7 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 /*
 	Turn towards the farthest detected object
 */
-uint16_t turnToFarthestObject (DistanceObject *distObj) {
+uint16_t turnToFarthestObject (DistanceObject *distObj, Servo *pan) {
 	uint16_t errorStatus = 0;
 
 	if (distObj->farthestPosPING < 0) {
@@ -1860,7 +1864,7 @@ uint16_t turnToFarthestObject (DistanceObject *distObj) {
 			if (errorStatus != 0) {
 				runAwayRobot(errorStatus);
 			} else {
-				errorStatus = scanArea(&pan, -90, 90, 10);
+				errorStatus = scanArea(pan, -90, 90, 10);
 
 				if (errorStatus != 0) {
 					processError(errorStatus, F("There was a problem with the area scan"));
@@ -2002,18 +2006,28 @@ uint16_t initMotors (ServoMotor *leftM1, ServoMotor *rightM2) {
 /*
 	Set the Pan/Tilt to Home Position
 */
-uint16_t initPanTilt (Servo *pan, Servo *tilt, Servo *camPan, Servo *camTilt) {
+uint16_t initPanTilt (Servo *mainPan, Servo *mainTilt, Servo *cameraPan, Servo *cameraTilt, Servo *leftTilt, Servo *rightTilt) {
 	uint16_t errorStatus = 0;
 
 	lastRoutine = String(F("initPanTilt"));
 
 	console.println(F("Initializing Pan/Tilt Positions.."));
 
-	//  Put the front pan/tilt at home position
-	errorStatus = setPanTiltHome(pan, tilt);
+	//  Put the main pan/tilt at home position
+	errorStatus = setPanTiltHome(mainPan, mainTilt);
 
 	if (errorStatus == 0) {
-		errorStatus = setPanTiltHome(camPan, camTilt);
+		//  Put the camera pan/tilt at home position
+		errorStatus = setPanTiltHome(cameraPan, cameraTilt);
+
+		if (errorStatus == 0) {
+			//	Put the right and left tilt servos at their home positions
+			errorStatus = moveServoPw(leftTilt, leftTilt->homePos, true);
+
+			if (errorStatus == 0) {
+				errorStatus = moveServoPw(rightTilt, rightTilt->homePos, true);
+			}
+		}
 	}
 
 	return errorStatus;
@@ -2179,49 +2193,71 @@ void initServos (void) {
 	gripGrab.maxDegrees = SERVO_MAX_DEGREES;
 	gripGrab.error = 0;
 
-	pan.pin = SERVO_PAN_PIN;
-	pan.descr = String(SERVO_PAN_NAME);
-	pan.offset = SERVO_PAN_OFFSET;
-	pan.homePos = SERVO_PAN_HOME;
-	pan.msPulse = 0;
-	pan.angle = 0;
-	pan.minPulse = SERVO_PAN_RIGHT_MIN;
-	pan.maxPulse = SERVO_PAN_LEFT_MAX;
-	pan.maxDegrees = SERVO_MAX_DEGREES;
-	pan.error = 0;
+	mainPan.pin = SERVO_MAIN_PAN_PIN;
+	mainPan.descr = String(SERVO_MAIN_PAN_NAME);
+	mainPan.offset = SERVO_MAIN_PAN_OFFSET;
+	mainPan.homePos = SERVO_MAIN_PAN_HOME;
+	mainPan.msPulse = 0;
+	mainPan.angle = 0;
+	mainPan.minPulse = SERVO_MAIN_PAN_RIGHT_MIN;
+	mainPan.maxPulse = SERVO_MAIN_PAN_LEFT_MAX;
+	mainPan.maxDegrees = SERVO_MAX_DEGREES;
+	mainPan.error = 0;
 
-	tilt.pin = SERVO_TILT_PIN;
-	tilt.descr = String(SERVO_TILT_NAME);
-	tilt.offset = SERVO_TILT_OFFSET;
-	tilt.homePos = SERVO_TILT_HOME;
-	tilt.msPulse = 0;
-	tilt.angle = 0;
-	tilt.minPulse = SERVO_TILT_UP_MIN;
-	tilt.maxPulse = SERVO_TILT_DOWN_MAX;
-	tilt.maxDegrees = SERVO_MAX_DEGREES;
-	tilt.error = 0;
+	mainTilt.pin = SERVO_MAIN_TILT_PIN;
+	mainTilt.descr = String(SERVO_MAIN_TILT_NAME);
+	mainTilt.offset = SERVO_MAIN_TILT_OFFSET;
+	mainTilt.homePos = SERVO_MAIN_TILT_HOME;
+	mainTilt.msPulse = 0;
+	mainTilt.angle = 0;
+	mainTilt.minPulse = SERVO_MAIN_TILT_UP_MIN;
+	mainTilt.maxPulse = SERVO_MAIN_TILT_DOWN_MAX;
+	mainTilt.maxDegrees = SERVO_MAX_DEGREES;
+	mainTilt.error = 0;
 
-	camPan.pin = SERVO_CAMPAN_PIN;
-	camPan.descr = String(SERVO_CAMPAN_NAME);
-	camPan.offset = SERVO_CAMPAN_OFFSET;
-	camPan.homePos = SERVO_CAMPAN_HOME;
-	camPan.msPulse = 0;
-	camPan.angle = 0;
-	camPan.minPulse = SERVO_CAMPAN_RIGHT_MIN;
-	camPan.maxPulse = SERVO_CAMPAN_LEFT_MAX;
-	camPan.maxDegrees = SERVO_MAX_DEGREES;
-	camPan.error = 0;
+	cameraPan.pin = SERVO_CAMERA_PAN_PIN;
+	cameraPan.descr = String(SERVO_CAMERA_PAN_NAME);
+	cameraPan.offset = SERVO_CAMERA_PAN_OFFSET;
+	cameraPan.homePos = SERVO_CAMERA_PAN_HOME;
+	cameraPan.msPulse = 0;
+	cameraPan.angle = 0;
+	cameraPan.minPulse = SERVO_CAMERA_PAN_RIGHT_MIN;
+	cameraPan.maxPulse = SERVO_CAMERA_PAN_LEFT_MAX;
+	cameraPan.maxDegrees = SERVO_MAX_DEGREES;
+	cameraPan.error = 0;
 
-	camTilt.pin = SERVO_CAMTILT_PIN;
-	camTilt.descr = String(SERVO_CAMTILT_NAME);
-	camTilt.offset = SERVO_CAMTILT_OFFSET;
-	camTilt.homePos = SERVO_CAMTILT_HOME;
-	camTilt.msPulse = 0;
-	camTilt.angle = 0;
-	camTilt.minPulse = SERVO_CAMTILT_UP_MIN;
-	camTilt.maxPulse = SERVO_CAMTILT_DOWN_MAX;
-	camTilt.maxDegrees = SERVO_MAX_DEGREES;
-	camTilt.error = 0;
+	cameraTilt.pin = SERVO_CAMERA_TILT_PIN;
+	cameraTilt.descr = String(SERVO_CAMERA_TILT_NAME);
+	cameraTilt.offset = SERVO_CAMERA_TILT_OFFSET;
+	cameraTilt.homePos = SERVO_CAMERA_TILT_HOME;
+	cameraTilt.msPulse = 0;
+	cameraTilt.angle = 0;
+	cameraTilt.minPulse = SERVO_CAMERA_TILT_UP_MIN;
+	cameraTilt.maxPulse = SERVO_CAMERA_TILT_DOWN_MAX;
+	cameraTilt.maxDegrees = SERVO_MAX_DEGREES;
+	cameraTilt.error = 0;
+
+	leftTilt.pin = SERVO_LEFT_TILT_PIN;
+	leftTilt.descr = String(SERVO_LEFT_TILT_NAME);
+	leftTilt.offset = SERVO_LEFT_TILT_OFFSET;
+	leftTilt.homePos = SERVO_LEFT_TILT_HOME;
+	leftTilt.msPulse = 0;
+	leftTilt.angle = 0;
+	leftTilt.minPulse = SERVO_LEFT_TILT_UP_MIN;
+	leftTilt.maxPulse = SERVO_LEFT_TILT_DOWN_MAX;
+	leftTilt.maxDegrees = SERVO_MAX_DEGREES;
+	leftTilt.error = 0;
+
+	rightTilt.pin = SERVO_RIGHT_TILT_PIN;
+	rightTilt.descr = String(SERVO_RIGHT_TILT_NAME);
+	rightTilt.offset = SERVO_RIGHT_TILT_OFFSET;
+	rightTilt.homePos = SERVO_RIGHT_TILT_HOME;
+	rightTilt.msPulse = 0;
+	rightTilt.angle = 0;
+	rightTilt.minPulse = SERVO_RIGHT_TILT_UP_MIN;
+	rightTilt.maxPulse = SERVO_RIGHT_TILT_DOWN_MAX;
+	rightTilt.maxDegrees = SERVO_MAX_DEGREES;
+	rightTilt.error = 0;
 }
 
 /************************************************************/
@@ -2285,7 +2321,7 @@ void setup (void) {
 		processError(errorStatus, F("Could not initialize the sensors"));
 	} else {
 		//	Set the Pan/Tilt units to their home positions
-		errorStatus = initPanTilt(&pan, &tilt, &camPan, &camTilt);
+		errorStatus = initPanTilt(&mainPan, &mainTilt, &cameraPan, &cameraTilt, &leftTilt, &rightTilt);
 
 		if (errorStatus != 0) {
 			processError(errorStatus, F("Could not initialize the PAN/TILT units"));
@@ -2413,7 +2449,7 @@ void setup (void) {
 	} else {
 		//	Scan the entire 180 degree range and take readings
 		console.println(F("Doing initial area scan.."));
-		errorStatus = scanArea(&pan, -90, 90, 10);
+		errorStatus = scanArea(&mainPan, -90, 90, 10);
 
 		if (errorStatus != 0) {
 			processError(errorStatus, F("Could not complete the initial area scan"));
@@ -2604,20 +2640,24 @@ void loop (void) {
 		}
 
 		//	Scan the area for a clear path
-		errorStatus = scanArea(&pan, -90, 90, 10);
-
-		//	Find the closest and farthest objects
-		distObject = findDistanceObjects();
-
-		errorStatus = turnToFarthestObject(&distObject);
+		errorStatus = scanArea(&mainPan, -90, 90, 10);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, F("Could not complete a turn to the farthest object"));
+			processError(errorStatus, F("Unable to scan the area"));
+		} else {
+			//	Find the closest and farthest objects
+			distObject = findDistanceObjects();
 
-			errorStatus = stopMotors();
+			errorStatus = turnToFarthestObject(&distObject, &mainPan);
 
 			if (errorStatus != 0) {
-				runAwayRobot(errorStatus);
+				processError(errorStatus, F("Could not complete a turn to the farthest object"));
+
+				errorStatus = stopMotors();
+
+				if (errorStatus != 0) {
+					runAwayRobot(errorStatus);
+				}
 			}
 		}
 	}
