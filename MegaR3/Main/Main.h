@@ -1,6 +1,6 @@
 /*
 	Program: 	SES Rover, Main.h - Master Control Program (MCP) sketch header file
-	Date:		15-Jun-2014
+	Date:		19-Jun-2014
 	Version:	0.2.8 ALPHA
 
 	Platform:	Arduino Mega 2560 R3,
@@ -26,7 +26,7 @@
 #define	I2C_SLAVE_ADDRESS				0x50
 
 #define	BUILD_VERSION					"0.2.8"
-#define	BUILD_DATE 						"15-Jun-2014"
+#define	BUILD_DATE 						"19-Jun-2014"
 #define	BUILD_BOARD						"Raspberry Pi Model B, Arduino Mega 2560 R3, and Lynxmotion's SSC-32"
 
 #define	LOOP_DELAY_SECONDS				10
@@ -126,8 +126,8 @@
 #define IR_MIN_DISTANCE_CM				14.0 		//	In CM, which is approximately 5"
 
 #define	IR_FRONT_CENTER					0
-#define	IR_BACK_CENTER					1
-#define	IR_BACK_LEFT					2
+#define	IR_FRONT_LEFT					1
+#define	IR_FRONT_RIGHT					2
 #define	IR_BACK_RIGHT					3
 
 //	RoboClaw 2x5 Motor Controller Packet Serial constants
@@ -193,6 +193,14 @@
 #define	SERVO_GRIP_LIFT_OFFSET			-100
 #define	SERVO_GRIP_LIFT_MIN				900
 #define	SERVO_GRIP_LIFT_MAX				1750
+
+//	Lesser = , Greater = 
+#define	SERVO_GRIP_ELBOW_PIN			4
+#define SERVO_GRIP_ELBOW_NAME			"Grip Elbow"
+#define	SERVO_GRIP_ELBOW_HOME			900
+#define	SERVO_GRIP_ELBOW_OFFSET			-100
+#define	SERVO_GRIP_ELBOW_MIN			900
+#define	SERVO_GRIP_ELBOW_MAX			1750
 
 //	Lesser = Right, Greater = Left
 #define	SERVO_GRIP_WRIST_PIN			5

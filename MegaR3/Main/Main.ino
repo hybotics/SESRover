@@ -1,6 +1,6 @@
 /*
 	Program:    	SES Rover, Main.ino - Master Control Program (MCP) sketch
-	Date:       	15-Jun-2014
+	Date:       	19-Jun-2014
 	Version:    	0.2.8 ALPHA
 
 	Platform:		Arduino Mega 2560 R3,
@@ -135,6 +135,8 @@
 					Renamed pan to mainPan, tilt to mainTilt, camPan to cameraPan, and camTilt to cameraTilt.
 
 					Added pan servos for the lower left front and right front
+
+					Added an elbow joint to the gripper, giving it a full 4DOF.
 					---------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -385,7 +387,7 @@ uint8_t roboClawAddress2 = ROBOCLAW_SERIAL_BASE_ADDR + 1;
 Motor leftM1, rightM2;
 
 //	Standard R/C servos
-Servo cameraPan, cameraTilt, gripLift, gripWrist, gripGrab, mainPan, mainTilt, leftTilt, rightTilt;
+Servo cameraPan, cameraTilt, gripLift, gripElbow, gripWrist, gripGrab, mainPan, mainTilt, leftTilt, rightTilt;
 
 //	Continuous rotation servo motors
 ServoMotor leftMotorM1 = {
@@ -1911,7 +1913,7 @@ uint16_t setPanTiltHome (Servo *pan, Servo *tilt) {
 	return errorStatus;
 }
 
-uint16_t initGripper (Servo *lift, Servo *wrist, Servo *grab) {
+uint16_t initGripper (Servo *lift, Servo *elbow, Servo *wrist, Servo *grab) {
 	uint16_t errorStatus = 0;
 
 	lastRoutine = String(F("initGripper"));
@@ -1922,17 +1924,21 @@ uint16_t initGripper (Servo *lift, Servo *wrist, Servo *grab) {
 	errorStatus = moveServoPw(lift, lift->homePos, false);
 
 	if (errorStatus != 0) {
-		processError(errorStatus, "Could not initialize the " + grab->descr + " servo");
+		processError(errorStatus, "Could not initialize the " + lift->descr + " servo");
 	} else {
-		errorStatus = moveServoPw(wrist, wrist->homePos, false);
+		errorStatus = moveServoPw(elbow, elbow->homePos, false);
 
 		if (errorStatus != 0) {
-			processError(errorStatus, "Could not initialize the " + wrist->descr + " servo");
+			processError(errorStatus, "Could not initialize the " + elbow->descr + " servo");
 		} else {
-			errorStatus = moveServoPw(grab, grab->homePos, true);
-
 			if (errorStatus != 0) {
-				processError(errorStatus, "Could not initialize the " + grab->descr + " servo");
+				processError(errorStatus, "Could not initialize the " + wrist->descr + " servo");
+			} else {
+				errorStatus = moveServoPw(grab, grab->homePos, true);
+
+				if (errorStatus != 0) {
+					processError(errorStatus, "Could not initialize the " + grab->descr + " servo");
+				}
 			}
 		}
 	}
@@ -2171,6 +2177,17 @@ void initServos (void) {
 	gripLift.maxDegrees = SERVO_MAX_DEGREES;
 	gripLift.error = 0;
 
+	gripElbow.pin = SERVO_GRIP_ELBOW_PIN;
+	gripElbow.descr = String(SERVO_GRIP_ELBOW_NAME);
+	gripElbow.offset = SERVO_GRIP_ELBOW_OFFSET;
+	gripElbow.homePos = SERVO_GRIP_ELBOW_HOME;
+	gripElbow.msPulse = 0;
+	gripElbow.angle = 0;
+	gripElbow.minPulse = SERVO_GRIP_ELBOW_MIN;
+	gripElbow.maxPulse = SERVO_GRIP_ELBOW_MAX;
+	gripElbow.maxDegrees = SERVO_MAX_DEGREES;
+	gripElbow.error = 0;
+
 	gripWrist.pin = SERVO_GRIP_WRIST_PIN;
 	gripWrist.descr = String(SERVO_GRIP_WRIST_NAME);
 	gripWrist.offset = SERVO_GRIP_WRIST_OFFSET;
@@ -2327,7 +2344,7 @@ void setup (void) {
 			processError(errorStatus, F("Could not initialize the PAN/TILT units"));
 		} else {
 			//	Set the Gripper to home position
-			errorStatus = initGripper(&gripLift, &gripWrist, &gripGrab);
+			errorStatus = initGripper(&gripLift, &gripElbow, &gripWrist, &gripGrab);
 		}
 
 		if (errorStatus != 0) {
