@@ -195,15 +195,15 @@
 #define	SERVO_GRIP_LIFT_MAX				1750
 
 //	Lesser = , Greater = 
-#define	SERVO_GRIP_ELBOW_PIN			4
+#define	SERVO_GRIP_ELBOW_PIN			5
 #define SERVO_GRIP_ELBOW_NAME			"Grip Elbow"
-#define	SERVO_GRIP_ELBOW_HOME			900
-#define	SERVO_GRIP_ELBOW_OFFSET			-100
-#define	SERVO_GRIP_ELBOW_MIN			900
-#define	SERVO_GRIP_ELBOW_MAX			1750
+#define	SERVO_GRIP_ELBOW_HOME			SERVO_CENTER_MS
+#define	SERVO_GRIP_ELBOW_OFFSET			0
+#define	SERVO_GRIP_ELBOW_MIN			500
+#define	SERVO_GRIP_ELBOW_MAX			2500
 
 //	Lesser = Right, Greater = Left
-#define	SERVO_GRIP_WRIST_PIN			5
+#define	SERVO_GRIP_WRIST_PIN			6
 #define SERVO_GRIP_WRIST_NAME			"Grip Wrist"
 #define	SERVO_GRIP_WRIST_HOME			SERVO_CENTER_MS
 #define	SERVO_GRIP_WRIST_OFFSET			0
@@ -211,16 +211,12 @@
 #define	SERVO_GRIP_WRIST_MAX			2500
 
 //	Greater = Close, Lesser = Open
-#define	SERVO_GRIP_GRAB_PIN				6
+#define	SERVO_GRIP_GRAB_PIN				7
 #define SERVO_GRIP_GRAB_NAME			"Grip Grab"
 #define	SERVO_GRIP_GRAB_HOME			500
 #define	SERVO_GRIP_GRAB_OFFSET			0
 #define	SERVO_GRIP_GRAB_MIN				500
 #define	SERVO_GRIP_GRAB_MAX				2000
-
-/*
-	Pin 7 has been intentionally left unconnected
-*/
 
 /*
 	Pin 8 has been intentionally left unconnected

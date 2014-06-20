@@ -136,7 +136,7 @@
 
 					Added pan servos for the lower left front and right front
 
-					Added an elbow joint to the gripper, giving it a full 4DOF.
+					Added an elbow joint to the gripper, giving it a full 4DOF, and adjusted servo pin numbers.
 					---------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
