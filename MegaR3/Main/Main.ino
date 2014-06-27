@@ -1546,7 +1546,7 @@ uint16_t moveServoDegrees (Servo *servo, int servoDegrees, boolean term, uint16_
 /*
 	Set the motor speed
 */
-uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term, uint8_t speedIncr = SERVO_MOTOR_SPEED_INCR) {
+uint16_t setServoMotorSpeed (ServoMotor *servoMotor, int spd, bool term, uint8_t speedIncr = SERVO_MOTOR_SPEED_INCR) {
 	uint16_t errorStatus = 0;
 	uint16_t pulse = SERVO_CENTER_MS;
 	uint16_t speedRange = abs(servoMotor->mspeed - (spd + servoMotor->speedAdjustment));
@@ -1554,7 +1554,7 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term, uint8_t spee
 	int motorDirection = (servoMotor->forward ? 1 : -1);
 	uint8_t stepCount = 0;
 
-	lastRoutine = String(F("setMotorSpeed"));
+	lastRoutine = String(F("setServoMotorSpeed"));
 
 	if ((spd < SERVO_MOTOR_MIN_SPEED) || (spd > SERVO_MOTOR_MAX_SPEED)) {
 		errorStatus = 501;
@@ -1578,7 +1578,7 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term, uint8_t spee
 */
 		console.println();
 
-		console.print(F("(setMotorSpeed #1) ServoMotor = '"));
+		console.print(F("(setServoMotorSpeed #1) ServoMotor = '"));
 		console.print(servoMotor->descr);
 		console.print(F("', spd = "));
 		console.print(spd);
@@ -1619,7 +1619,7 @@ uint16_t setMotorSpeed (ServoMotor *servoMotor, int spd, bool term, uint8_t spee
 
 		console.println();
 
-		console.print(F("(setMotorSpeed #2) ServoMotor = '"));
+		console.print(F("(setServoMotorSpeed #2) ServoMotor = '"));
 		console.print(servoMotor->descr);
 		console.print(F("', spd = "));
 		console.print(spd);
@@ -2527,8 +2527,8 @@ void loop (void) {
 	}
 
 	//	Start our motors at a reasonable speed.
-	setMotorSpeed(&leftMotorM1, 250, false);
-	setMotorSpeed(&rightMotorM2, 250, true);
+	setMotorSpeed(&leftMotorM1, 50, false);
+	setMotorSpeed(&rightMotorM2, 50, true);
 
 	//  Display the date.
 	if (displayDate && DISPLAY_INFORMATION && HAVE_7SEGMENT_DISPLAYS) {
